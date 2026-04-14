@@ -10,6 +10,15 @@ const TOKEN_ENV_CANDIDATES = [
   "FOOTBALL_DATA_TOKEN"
 ];
 
+const COMPETITIONS = (process.env.FOOTBALL_COMPETITIONS || "2013")
+  .split(",")
+  .map((v) => v.trim())
+  .filter(Boolean);
+
+const ENABLE_GEOCODING = process.env.ENABLE_GEOCODING !== "false";
+const NOMINATIM_EMAIL = process.env.NOMINATIM_EMAIL || "";
+const GEOCODE_DELAY_MS = Number(process.env.GEOCODE_DELAY_MS || 1100);
+
 function getApiToken() {
   for (const key of TOKEN_ENV_CANDIDATES) {
     if (process.env[key]) return process.env[key];
@@ -25,10 +34,6 @@ function getApiToken() {
 }
 
 const API_TOKEN = getApiToken();
-const COMPETITIONS = (process.env.FOOTBALL_COMPETITIONS || "2013")
-  .split(",")
-  .map((v) => v.trim())
-  .filter(Boolean);
 
 if (!DATABASE_URL) {
   console.error("Missing DATABASE_URL");
@@ -61,8 +66,119 @@ const COUNTRY_COORDS = {
   Denmark: { lat: 56.2639, lng: 9.5018 }
 };
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function guessCoords(country) {
   return COUNTRY_COORDS[country] || { lat: 20, lng: 0 };
+}
+
+function normalizeVenue(venue, country) {
+  return `${(venue || "Unknown venue").trim()}|${(country || "Unknown").trim()}`.toLowerCase();
+}
+
+async function ensureVenueLocationsTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS venue_locations (
+      venue_key TEXT PRIMARY KEY,
+      venue_name TEXT NOT NULL,
+      country TEXT NOT NULL,
+      lat DOUBLE PRECISION NOT NULL,
+      lng DOUBLE PRECISION NOT NULL,
+      source TEXT NOT NULL DEFAULT 'fallback',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
+async function loadVenueLocationCache() {
+  const cache = new Map();
+  const { rows } = await pool.query("SELECT venue_key, lat, lng FROM venue_locations");
+  for (const row of rows) {
+    cache.set(row.venue_key, { lat: Number(row.lat), lng: Number(row.lng) });
+  }
+  return cache;
+}
+
+async function saveVenueLocation(venueKey, venue, country, lat, lng, source) {
+  await pool.query(
+    `
+      INSERT INTO venue_locations (venue_key, venue_name, country, lat, lng, source, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      ON CONFLICT (venue_key)
+      DO UPDATE SET
+        venue_name = EXCLUDED.venue_name,
+        country = EXCLUDED.country,
+        lat = EXCLUDED.lat,
+        lng = EXCLUDED.lng,
+        source = EXCLUDED.source,
+        updated_at = NOW()
+    `,
+    [venueKey, venue, country, lat, lng, source]
+  );
+}
+
+async function geocodeVenue(venue, country) {
+  if (!ENABLE_GEOCODING) return null;
+
+  const params = new URLSearchParams({
+    q: `${venue}, ${country}`,
+    format: "jsonv2",
+    limit: "1"
+  });
+
+  if (NOMINATIM_EMAIL) {
+    params.set("email", NOMINATIM_EMAIL);
+  }
+
+  const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+    headers: {
+      "User-Agent": "asportsmap-importer/1.0"
+    }
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json();
+  if (!Array.isArray(data) || !data.length) {
+    return null;
+  }
+
+  const top = data[0];
+  const lat = Number(top.lat);
+  const lng = Number(top.lon);
+
+  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    return null;
+  }
+
+  return { lat, lng };
+}
+
+async function resolveCoords(match, locationCache) {
+  const venue = match.venue || `${match.homeTeam?.name || "Unknown venue"} Stadium`;
+  const country = match.area?.name || "Unknown";
+  const venueKey = normalizeVenue(venue, country);
+
+  if (locationCache.has(venueKey)) {
+    return locationCache.get(venueKey);
+  }
+
+  const geocoded = await geocodeVenue(venue, country);
+  if (geocoded) {
+    await saveVenueLocation(venueKey, venue, country, geocoded.lat, geocoded.lng, "nominatim");
+    locationCache.set(venueKey, geocoded);
+    await sleep(GEOCODE_DELAY_MS);
+    return geocoded;
+  }
+
+  const fallback = guessCoords(country);
+  await saveVenueLocation(venueKey, venue, country, fallback.lat, fallback.lng, "fallback");
+  locationCache.set(venueKey, fallback);
+  return fallback;
 }
 
 async function fetchCompetitionMatches(code) {
@@ -81,16 +197,17 @@ async function fetchCompetitionMatches(code) {
   return response.json();
 }
 
-function normalizeMatch(match) {
+async function normalizeMatch(match, locationCache) {
   const id = String(match.id);
   const country = match.area?.name || "Unknown";
-  const coords = guessCoords(country);
+  const venue = match.venue || `${match.homeTeam?.name || "Unknown venue"} Stadium`;
+  const coords = await resolveCoords(match, locationCache);
 
   return {
     id,
     sport: "football",
     competition: match.competition?.name || "Football",
-    venue: match.venue || `${match.homeTeam?.name || "Unknown venue"} Stadium`,
+    venue,
     city: country,
     country,
     capacity: null,
@@ -155,11 +272,19 @@ async function upsertMatches(matches) {
 
 async function main() {
   try {
+    await ensureVenueLocationsTable();
+    const locationCache = await loadVenueLocationCache();
+
     let total = 0;
 
     for (const code of COMPETITIONS) {
       const payload = await fetchCompetitionMatches(code);
-      const normalized = (payload.matches || []).map(normalizeMatch);
+      const normalized = [];
+
+      for (const match of payload.matches || []) {
+        normalized.push(await normalizeMatch(match, locationCache));
+      }
+
       const imported = await upsertMatches(normalized);
       total += imported;
       console.log(`Imported/updated ${imported} matches from competition ${code}`);

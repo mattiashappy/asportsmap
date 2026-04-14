@@ -25,6 +25,9 @@ Appen använder:
 - `X_AUTH` (din football-data API token, rekommenderad)
 - `FOOTBALL_DATA_API_TOKEN` (alternativt namn som också stöds)
 - `FOOTBALL_COMPETITIONS` (valfri, kommaseparerad lista med competition ids, default `2013`)
+- `ENABLE_GEOCODING` (default `true`, slå av med `false`)
+- `NOMINATIM_EMAIL` (valfri men rekommenderad för bättre geokodningshygien)
+- `GEOCODE_DELAY_MS` (default `1100`, för att undvika rate-limit)
 
 Exempel (lokalt):
 
@@ -34,6 +37,8 @@ export X_AUTH='your-football-data-token'
 # alternativt:
 export FOOTBALL_DATA_API_TOKEN='your-football-data-token'
 export FOOTBALL_COMPETITIONS='2013,2016,2021'
+export ENABLE_GEOCODING='true'
+export NOMINATIM_EMAIL='you@example.com'
 ```
 
 För Heroku:
@@ -44,6 +49,8 @@ heroku config:set X_AUTH='your-football-data-token' -a <din-app>
 # alternativt:
 heroku config:set FOOTBALL_DATA_API_TOKEN='your-football-data-token' -a <din-app>
 heroku config:set FOOTBALL_COMPETITIONS='2013,2016,2021' -a <din-app>
+heroku config:set ENABLE_GEOCODING='true' -a <din-app>
+heroku config:set NOMINATIM_EMAIL='you@example.com' -a <din-app>
 ```
 
 > Importscriptet försöker flera vanliga namn: `X_AUTH`, `X-Auth`, `X_AUTH_TOKEN`, `X-Auth-Token`, `FOOTBALL_DATA_API_TOKEN`, `FOOTBALL_DATA_TOKEN`.
@@ -69,6 +76,14 @@ För Heroku one-off:
 ```bash
 heroku run npm run import:matches -a <din-app>
 ```
+
+Efter geocoder-förbättringar: kör importen igen så befintliga matcher uppdateras med bättre koordinater:
+
+```bash
+heroku run npm run import:matches -a <din-app>
+```
+
+Importeraren cachar arenakoordinater i tabellen `venue_locations` för snabbare framtida körningar.
 
 ## 5) Starta lokalt
 
@@ -125,4 +140,4 @@ git push heroku main
 - `DATABASE_URL is not set` → sätt `DATABASE_URL` i miljön/Heroku config vars.
 - `Missing API token` vid import → sätt `X_AUTH` (rekommenderat) eller `FOOTBALL_DATA_API_TOKEN` i Heroku config vars.
 - `relation "games" does not exist` → kör `db/schema.sql`.
-- Tom karta → kör import och kontrollera att tabellen innehåller framtida matcher (`kickoff >= NOW()`).
+- Tom karta/för få markörer → kör om importen med geocoding aktiverad och kontrollera `venue_locations` att koordinater sparas.
