@@ -227,5 +227,5 @@ app.get("*", (_req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`SportsMap server running on port ${port}`);
+  console.log(`asportmap.com server running on port ${port}`);
 });
