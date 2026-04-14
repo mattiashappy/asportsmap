@@ -10,7 +10,7 @@ const TOKEN_ENV_CANDIDATES = [
   "FOOTBALL_DATA_TOKEN"
 ];
 
-const COMPETITIONS = (process.env.FOOTBALL_COMPETITIONS || "2013")
+const COMPETITIONS = (process.argv[2] || process.env.FOOTBALL_COMPETITIONS || "2013")
   .split(",")
   .map((v) => v.trim())
   .filter(Boolean);
