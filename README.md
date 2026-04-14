@@ -22,7 +22,8 @@ npm install
 Appen använder:
 
 - `DATABASE_URL` (Postgres)
-- `X_AUTH` (din football-data API token)
+- `X_AUTH` (din football-data API token, rekommenderad)
+- `FOOTBALL_DATA_API_TOKEN` (alternativt namn som också stöds)
 - `FOOTBALL_COMPETITIONS` (valfri, kommaseparerad lista med competition ids, default `2013`)
 
 Exempel (lokalt):
@@ -30,6 +31,8 @@ Exempel (lokalt):
 ```bash
 export DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DBNAME'
 export X_AUTH='your-football-data-token'
+# alternativt:
+export FOOTBALL_DATA_API_TOKEN='your-football-data-token'
 export FOOTBALL_COMPETITIONS='2013,2016,2021'
 ```
 
@@ -38,10 +41,12 @@ För Heroku:
 ```bash
 heroku config:set DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DBNAME' -a <din-app>
 heroku config:set X_AUTH='your-football-data-token' -a <din-app>
+# alternativt:
+heroku config:set FOOTBALL_DATA_API_TOKEN='your-football-data-token' -a <din-app>
 heroku config:set FOOTBALL_COMPETITIONS='2013,2016,2021' -a <din-app>
 ```
 
-> Om du redan har lagt token i Heroku under namnet `X-Auth` fungerar importscriptet även med det namnet.
+> Importscriptet försöker flera vanliga namn: `X_AUTH`, `X-Auth`, `X_AUTH_TOKEN`, `X-Auth-Token`, `FOOTBALL_DATA_API_TOKEN`, `FOOTBALL_DATA_TOKEN`.
 
 ## 3) Skapa tabell + index
 
@@ -118,6 +123,6 @@ git push heroku main
 ## Felsökning
 
 - `DATABASE_URL is not set` → sätt `DATABASE_URL` i miljön/Heroku config vars.
-- `Missing API token` vid import → sätt `X_AUTH` (eller `X-Auth`) i Heroku config vars.
+- `Missing API token` vid import → sätt `X_AUTH` (rekommenderat) eller `FOOTBALL_DATA_API_TOKEN` i Heroku config vars.
 - `relation "games" does not exist` → kör `db/schema.sql`.
 - Tom karta → kör import och kontrollera att tabellen innehåller framtida matcher (`kickoff >= NOW()`).

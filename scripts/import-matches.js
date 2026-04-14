@@ -1,7 +1,30 @@
 const { Pool } = require("pg");
 
 const DATABASE_URL = process.env.DATABASE_URL;
-const API_TOKEN = process.env.X_AUTH || process.env["X-Auth"];
+const TOKEN_ENV_CANDIDATES = [
+  "X_AUTH",
+  "X-Auth",
+  "X_AUTH_TOKEN",
+  "X-Auth-Token",
+  "FOOTBALL_DATA_API_TOKEN",
+  "FOOTBALL_DATA_TOKEN"
+];
+
+function getApiToken() {
+  for (const key of TOKEN_ENV_CANDIDATES) {
+    if (process.env[key]) return process.env[key];
+  }
+
+  const dynamic = Object.entries(process.env).find(([key, value]) => {
+    if (!value) return false;
+    const normalized = key.replace(/[^a-z0-9]/gi, "").toUpperCase();
+    return normalized === "XAUTH" || normalized === "XAUTHTOKEN" || normalized === "FOOTBALLDATAAPITOKEN";
+  });
+
+  return dynamic ? dynamic[1] : "";
+}
+
+const API_TOKEN = getApiToken();
 const COMPETITIONS = (process.env.FOOTBALL_COMPETITIONS || "2013")
   .split(",")
   .map((v) => v.trim())
@@ -13,7 +36,9 @@ if (!DATABASE_URL) {
 }
 
 if (!API_TOKEN) {
-  console.error("Missing API token. Set X_AUTH (or X-Auth) in environment.");
+  console.error(
+    `Missing API token. Set one of: ${TOKEN_ENV_CANDIDATES.join(", ")} (Heroku usually works best with X_AUTH).`
+  );
   process.exit(1);
 }
 
