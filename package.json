@@ -1,7 +1,7 @@
 {
   "name": "asportsmap",
   "version": "1.0.0",
-  "description": "SportsMap app ready for Heroku with PostgreSQL",
+  "description": "asportmap.com app ready for Heroku with PostgreSQL",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

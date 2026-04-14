@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SportsMap</title>
+    <title>asportmap.com</title>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -15,8 +15,7 @@
   <body>
     <header class="topbar">
       <div class="brand">
-        <h1><span>sportsmap</span>.world</h1>
-        <p>Upcoming football games around the world</p>
+        <h1><img src="/Logo.svg" alt="asportsmap logo" class="brand-logo" /></h1>
       </div>
       <div class="search-wrapper">
         <input id="searchInput" type="search" placeholder="Search city, stadium, team..." />
@@ -29,8 +28,8 @@
           <strong id="fromDate">--</strong>
           <strong id="toDate">--</strong>
         </div>
-        <input id="dateRange" type="range" min="0" max="30" value="30" />
-        <small>Show games in the next <span id="rangeDays">30</span> days</small>
+        <input id="dateRange" type="range" min="0" max="90" value="90" />
+        <small>Show games in the next <span id="rangeDays">90</span> days</small>
       </div>
     </section>
 
@@ -38,7 +37,6 @@
       <div id="map"></div>
       <aside id="gameCard" class="game-card hidden">
         <h2 id="stadiumName"></h2>
-        <p id="locationText"></p>
         <div class="matchup">
           <div>
             <div id="teamsCode" class="teams-code"></div>
@@ -48,6 +46,9 @@
         </div>
         <p id="competition"></p>
         <p id="gameTime" class="muted"></p>
+        <div class="card-actions">
+          <button id="nextGameBtn" type="button" disabled>Next match at this arena</button>
+        </div>
       </aside>
     </main>
 

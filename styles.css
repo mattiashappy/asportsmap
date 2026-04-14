@@ -1,8 +1,8 @@
 :root {
   color-scheme: light;
   font-family: Inter, Arial, sans-serif;
-  --navy: #0d1252;
-  --accent: #2f55ff;
+  --primary: #8cac7f;
+  --primary-dark: #6f8e64;
   --card: #ffffffee;
   --text: #1d2230;
 }
@@ -19,7 +19,7 @@ body {
 
 .topbar {
   height: 74px;
-  background: var(--navy);
+  background: var(--primary);
   color: #fff;
   display: flex;
   justify-content: space-between;
@@ -30,12 +30,13 @@ body {
 
 .brand h1 {
   margin: 0;
-  font-size: 34px;
   line-height: 1;
 }
 
-.brand h1 span {
-  font-style: italic;
+.brand-logo {
+  display: block;
+  height: 68px;
+  width: auto;
 }
 
 .brand p {
@@ -135,13 +136,31 @@ main {
   font-style: italic;
 }
 
+.card-actions {
+  margin-top: 12px;
+}
+
+.card-actions button {
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.card-actions button:disabled {
+  background: #b9c9b2;
+  cursor: not-allowed;
+}
+
 .marker-pin {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--primary);
   border: 2px solid white;
-  box-shadow: 0 0 0 2px #132067;
+  box-shadow: 0 0 0 2px var(--primary-dark);
 }
 
 @media (max-width: 700px) {
