@@ -103,10 +103,18 @@ function clearMarkers() {
 }
 
 function sameVenue(left, right) {
+  const leftVenue = String(left.venue || "").trim().toLowerCase();
+  const rightVenue = String(right.venue || "").trim().toLowerCase();
+  const sameVenueName = leftVenue && rightVenue && leftVenue === rightVenue;
+  const sameCoordinates = Number.isFinite(left.lat) &&
+    Number.isFinite(left.lng) &&
+    Number.isFinite(right.lat) &&
+    Number.isFinite(right.lng) &&
+    Math.abs(left.lat - right.lat) < 0.0001 &&
+    Math.abs(left.lng - right.lng) < 0.0001;
+
   return (
-    left.venue === right.venue &&
-    left.city === right.city &&
-    left.country === right.country
+    sameVenueName || sameCoordinates
   );
 }
 
@@ -117,7 +125,7 @@ function getVenueGames(game) {
 }
 
 function updateNextGameButton() {
-  const hasNext = state.venueGameIndex >= 0 && state.venueGameIndex < state.venueGames.length - 1;
+  const hasNext = state.venueGames.length > 1;
   elements.nextGameBtn.disabled = !hasNext;
 }
 
@@ -160,8 +168,8 @@ function wireEvents() {
   elements.search.addEventListener("input", applyFilters);
   elements.range.addEventListener("input", applyFilters);
   elements.nextGameBtn.addEventListener("click", () => {
-    const nextIndex = state.venueGameIndex + 1;
-    if (nextIndex >= state.venueGames.length) return;
+    if (state.venueGames.length < 2) return;
+    const nextIndex = (state.venueGameIndex + 1) % state.venueGames.length;
     showGame(state.venueGames[nextIndex]);
   });
 }
