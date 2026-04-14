@@ -10,7 +10,10 @@ const TOKEN_ENV_CANDIDATES = [
   "FOOTBALL_DATA_TOKEN"
 ];
 
-const COMPETITIONS = (process.argv[2] || process.env.FOOTBALL_COMPETITIONS || "2013")
+// Här listar vi de ID:n vi vill ha som standard om inget skrivs i terminalen
+const DEFAULT_LIGUE_IDS = "2013,2021,2014,2002,2019,2015,2001,2003,2017";
+
+const COMPETITIONS = (process.argv[2] || process.env.FOOTBALL_COMPETITIONS || DEFAULT_LIGUE_IDS)
   .split(",")
   .map((v) => v.trim())
   .filter(Boolean);
