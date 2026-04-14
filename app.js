@@ -1,4 +1,4 @@
-const API_URL = window.SPORTSMAP_API_URL || "/api/games";
+const API_URL = window.ASPORTMAP_API_URL || window.SPORTSMAP_API_URL || "/api/games";
 
 const map = L.map("map", { zoomControl: false }).setView([25, 5], 2);
 L.control.zoom({ position: "topright" }).addTo(map);
@@ -9,7 +9,9 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 const state = {
   games: [],
   filteredGames: [],
-  markers: []
+  markers: [],
+  venueGames: [],
+  venueGameIndex: -1
 };
 
 const elements = {
@@ -20,12 +22,12 @@ const elements = {
   toDate: document.getElementById("toDate"),
   card: document.getElementById("gameCard"),
   stadiumName: document.getElementById("stadiumName"),
-  locationText: document.getElementById("locationText"),
   teamsCode: document.getElementById("teamsCode"),
   teamsFull: document.getElementById("teamsFull"),
   flag: document.getElementById("countryFlag"),
   competition: document.getElementById("competition"),
-  gameTime: document.getElementById("gameTime")
+  gameTime: document.getElementById("gameTime"),
+  nextGameBtn: document.getElementById("nextGameBtn")
 };
 
 function formatDate(dateLike) {
@@ -100,14 +102,35 @@ function clearMarkers() {
   state.markers = [];
 }
 
+function sameVenue(left, right) {
+  return (
+    left.venue === right.venue &&
+    left.city === right.city &&
+    left.country === right.country
+  );
+}
+
+function getVenueGames(game) {
+  return state.games
+    .filter((candidate) => sameVenue(candidate, game))
+    .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
+}
+
+function updateNextGameButton() {
+  const hasNext = state.venueGameIndex >= 0 && state.venueGameIndex < state.venueGames.length - 1;
+  elements.nextGameBtn.disabled = !hasNext;
+}
+
 function showGame(game) {
   elements.card.classList.remove("hidden");
+  state.venueGames = getVenueGames(game);
+  state.venueGameIndex = state.venueGames.findIndex((venueGame) => venueGame.id === game.id);
   elements.stadiumName.textContent = game.venue;
-  elements.locationText.textContent = `${game.city}, ${game.country} — Capacity: ${game.capacity}`;
   elements.teamsCode.textContent = `${game.homeTeam.slice(0, 3).toUpperCase()} × ${game.awayTeam.slice(0, 3).toUpperCase()}`;
   elements.teamsFull.textContent = `${game.homeTeam} vs ${game.awayTeam}`;
   elements.competition.textContent = game.competition;
   elements.gameTime.textContent = formatDate(game.kickoff);
+  updateNextGameButton();
 
   if (game.flagUrl) {
     elements.flag.src = game.flagUrl;
@@ -136,6 +159,11 @@ function renderMarkers() {
 function wireEvents() {
   elements.search.addEventListener("input", applyFilters);
   elements.range.addEventListener("input", applyFilters);
+  elements.nextGameBtn.addEventListener("click", () => {
+    const nextIndex = state.venueGameIndex + 1;
+    if (nextIndex >= state.venueGames.length) return;
+    showGame(state.venueGames[nextIndex]);
+  });
 }
 
 async function boot() {
