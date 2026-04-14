@@ -8,6 +8,7 @@ SportsMap är nu förberedd för att köras på Heroku med Postgres.
   - serverar frontend-filerna (`index.html`, `app.js`, `styles.css`),
   - exponerar `GET /api/games` som hämtar matcher från Postgres,
   - har `GET /health` för enkel hälsokontroll.
+- `scripts/import-matches.js` importerar matcher från football-data.org till tabellen `games`.
 - Frontend (`app.js`) läser matcher från `/api/games` som standard.
 
 ## 1) Installera lokalt
@@ -16,23 +17,31 @@ SportsMap är nu förberedd för att köras på Heroku med Postgres.
 npm install
 ```
 
-## 2) Konfigurera databasanslutning
+## 2) Konfigurera miljövariabler
 
-Appen använder miljövariabeln `DATABASE_URL`.
+Appen använder:
+
+- `DATABASE_URL` (Postgres)
+- `X_AUTH` (din football-data API token)
+- `FOOTBALL_COMPETITIONS` (valfri, kommaseparerad lista med competition ids, default `2013`)
 
 Exempel (lokalt):
 
 ```bash
 export DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DBNAME'
+export X_AUTH='your-football-data-token'
+export FOOTBALL_COMPETITIONS='2013,2016,2021'
 ```
 
-För Heroku sätter du config var:
+För Heroku:
 
 ```bash
 heroku config:set DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DBNAME' -a <din-app>
+heroku config:set X_AUTH='your-football-data-token' -a <din-app>
+heroku config:set FOOTBALL_COMPETITIONS='2013,2016,2021' -a <din-app>
 ```
 
-> Tips: På Heroku sätts `DATABASE_URL` normalt automatiskt om du lägger till Heroku Postgres add-on.
+> Om du redan har lagt token i Heroku under namnet `X-Auth` fungerar importscriptet även med det namnet.
 
 ## 3) Skapa tabell + index
 
@@ -42,10 +51,18 @@ Kör SQL från `db/schema.sql`:
 psql "$DATABASE_URL" -f db/schema.sql
 ```
 
-## 4) Lägg in testdata (valfritt)
+## 4) Importera matcher från API
+
+Kör import manuellt:
 
 ```bash
-psql "$DATABASE_URL" -f db/seed.sql
+npm run import:matches
+```
+
+För Heroku one-off:
+
+```bash
+heroku run npm run import:matches -a <din-app>
 ```
 
 ## 5) Starta lokalt
@@ -80,19 +97,19 @@ git push heroku main
 {
   "games": [
     {
-      "id": "match-1",
+      "id": "12345",
       "sport": "football",
-      "competition": "Premier League",
-      "venue": "Anfield",
-      "city": "Liverpool",
+      "competition": "Championship",
+      "venue": "Some Stadium",
+      "city": "England",
       "country": "England",
-      "capacity": 54074,
+      "capacity": null,
       "kickoff": "2026-04-17T13:00:00.000Z",
-      "lat": 53.4308,
-      "lng": -2.9608,
-      "homeTeam": "Liverpool",
-      "awayTeam": "Arsenal",
-      "flagUrl": "https://flagcdn.com/gb-eng.svg"
+      "lat": 52.3555,
+      "lng": -1.1743,
+      "homeTeam": "Team A",
+      "awayTeam": "Team B",
+      "flagUrl": "https://crests.football-data.org/770.svg"
     }
   ]
 }
@@ -100,6 +117,7 @@ git push heroku main
 
 ## Felsökning
 
-- `DATABASE_URL is not set` → sätt `DATABASE_URL` i din miljö/Heroku config vars.
+- `DATABASE_URL is not set` → sätt `DATABASE_URL` i miljön/Heroku config vars.
+- `Missing API token` vid import → sätt `X_AUTH` (eller `X-Auth`) i Heroku config vars.
 - `relation "games" does not exist` → kör `db/schema.sql`.
-- Tom karta → kontrollera att det finns framtida matcher i tabellen (`kickoff >= NOW()`).
+- Tom karta → kör import och kontrollera att tabellen innehåller framtida matcher (`kickoff >= NOW()`).

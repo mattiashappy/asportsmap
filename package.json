@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "check": "node --check server.js && node --check app.js"
+    "check": "node --check server.js && node --check app.js",
+    "import:matches": "node scripts/import-matches.js"
   },
   "engines": {
     "node": ">=20"
