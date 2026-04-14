@@ -1,4 +1,4 @@
-const API_URL = window.SPORTSMAP_API_URL || "./mock-games.json";
+const API_URL = window.SPORTSMAP_API_URL || "/api/games";
 
 const map = L.map("map", { zoomControl: true }).setView([25, 5], 2);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -148,7 +148,7 @@ async function boot() {
     }
   } catch (error) {
     console.error(error);
-    alert("Could not load game data. Verify the API response format.");
+    alert("Could not load game data. Kontrollera att Heroku Postgres är konfigurerad och att tabellen games innehåller data.");
   }
 }
 
