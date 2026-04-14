@@ -8,7 +8,7 @@ SportsMap är nu förberedd för att köras på Heroku med Postgres.
   - serverar frontend-filerna (`index.html`, `app.js`, `styles.css`),
   - exponerar `GET /api/games` som hämtar matcher från Postgres,
   - har `GET /health` för enkel hälsokontroll.
-- `scripts/import-matches.js` importerar matcher från football-data.org till tabellen `games`.
+- `scripts/import-matches.js` importerar matcher från football-data.org till tabellen `games` och loggar varje körning i `import_runs` (success/failed).
 - Frontend (`app.js`) läser matcher från `/api/games` som standard.
 
 ## 1) Installera lokalt
@@ -28,6 +28,10 @@ Appen använder:
 - `ENABLE_GEOCODING` (default `true`, slå av med `false`)
 - `NOMINATIM_EMAIL` (valfri men rekommenderad för bättre geokodningshygien)
 - `GEOCODE_DELAY_MS` (default `1100`, för att undvika rate-limit)
+- `ADMIN_USERNAME` (default `admin`, används för `/admin`)
+- `ADMIN_PASSWORD` (default `admin`, byt i produktion)
+- `ADMIN_SESSION_SECRET` (måste sättas i produktion för säkra sessions)
+- `ADMIN_SESSION_TTL_MS` (valfri, default 8 timmar)
 
 Exempel (lokalt):
 
@@ -39,6 +43,9 @@ export FOOTBALL_DATA_API_TOKEN='your-football-data-token'
 export FOOTBALL_COMPETITIONS='2013,2016,2021'
 export ENABLE_GEOCODING='true'
 export NOMINATIM_EMAIL='you@example.com'
+export ADMIN_USERNAME='admin'
+export ADMIN_PASSWORD='starkt-losenord'
+export ADMIN_SESSION_SECRET='my-long-random-secret'
 ```
 
 För Heroku:
@@ -51,6 +58,9 @@ heroku config:set FOOTBALL_DATA_API_TOKEN='your-football-data-token' -a <din-app
 heroku config:set FOOTBALL_COMPETITIONS='2013,2016,2021' -a <din-app>
 heroku config:set ENABLE_GEOCODING='true' -a <din-app>
 heroku config:set NOMINATIM_EMAIL='you@example.com' -a <din-app>
+heroku config:set ADMIN_USERNAME='admin' -a <din-app>
+heroku config:set ADMIN_PASSWORD='starkt-losenord' -a <din-app>
+heroku config:set ADMIN_SESSION_SECRET='my-long-random-secret' -a <din-app>
 ```
 
 > Importscriptet försöker flera vanliga namn: `X_AUTH`, `X-Auth`, `X_AUTH_TOKEN`, `X-Auth-Token`, `FOOTBALL_DATA_API_TOKEN`, `FOOTBALL_DATA_TOKEN`.
@@ -92,6 +102,11 @@ npm start
 ```
 
 Öppna <http://localhost:3000>.
+
+Admin-sida finns på <http://localhost:3000/admin> och visar:
+- antal matcher i databasen,
+- senaste importstatus,
+- senaste misslyckade importer.
 
 ## 6) Deploy på Heroku
 

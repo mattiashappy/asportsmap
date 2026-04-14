@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SportsMap Admin</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      body {
+        margin: 0;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      main {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 1rem;
+      }
+      .card {
+        background: #111827;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      h1, h2 { margin-top: 0; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+      }
+      .stat {
+        background: #1e293b;
+        border-radius: 10px;
+        padding: 0.75rem;
+      }
+      label {
+        display: block;
+        margin-top: 0.75rem;
+        margin-bottom: 0.25rem;
+      }
+      input {
+        width: 100%;
+        padding: 0.6rem;
+        border-radius: 8px;
+        border: 1px solid #475569;
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+      button {
+        margin-top: 1rem;
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem 0.9rem;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #475569;
+      }
+      .muted {
+        color: #94a3b8;
+      }
+      .error {
+        color: #fca5a5;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        text-align: left;
+        border-bottom: 1px solid #334155;
+        padding: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>SportsMap Admin</h1>
+
+      <section id="loginCard" class="card">
+        <h2>Admin login</h2>
+        <p class="muted">Logga in för att se statistik och status för den dagliga importen.</p>
+        <form id="loginForm">
+          <label for="username">Användarnamn</label>
+          <input id="username" name="username" required />
+          <label for="password">Lösenord</label>
+          <input id="password" name="password" type="password" required />
+          <button type="submit">Logga in</button>
+          <p id="loginError" class="error"></p>
+        </form>
+      </section>
+
+      <section id="dashboard" hidden>
+        <div class="card">
+          <h2>Matchstatistik</h2>
+          <div class="grid">
+            <div class="stat">
+              <div class="muted">Totalt matcher</div>
+              <strong id="totalGames">-</strong>
+            </div>
+            <div class="stat">
+              <div class="muted">Kommande matcher</div>
+              <strong id="upcomingGames">-</strong>
+            </div>
+            <div class="stat">
+              <div class="muted">Inlagda senaste 24h</div>
+              <strong id="last24hGames">-</strong>
+            </div>
+          </div>
+          <button id="refreshBtn" class="secondary">Uppdatera</button>
+          <button id="logoutBtn" class="secondary">Logga ut</button>
+        </div>
+
+        <div class="card">
+          <h2>Senaste import</h2>
+          <p id="latestImport" class="muted">-</p>
+        </div>
+
+        <div class="card">
+          <h2>Misslyckade importer (senaste 10)</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Start</th>
+                <th>Tävlingar</th>
+                <th>Fel</th>
+              </tr>
+            </thead>
+            <tbody id="failuresBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const loginCard = document.getElementById("loginCard");
+      const dashboard = document.getElementById("dashboard");
+      const loginForm = document.getElementById("loginForm");
+      const loginError = document.getElementById("loginError");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      function formatDate(value) {
+        if (!value) return "-";
+        return new Date(value).toLocaleString("sv-SE");
+      }
+
+      function setDashboardVisible(visible) {
+        loginCard.hidden = visible;
+        dashboard.hidden = !visible;
+      }
+
+      async function loadStats() {
+        const response = await fetch("/api/admin/stats", { credentials: "include" });
+        if (response.status === 401) {
+          setDashboardVisible(false);
+          return;
+        }
+        if (!response.ok) {
+          throw new Error("Kunde inte läsa statistik");
+        }
+
+        const data = await response.json();
+        document.getElementById("totalGames").textContent = data.counts.total_games;
+        document.getElementById("upcomingGames").textContent = data.counts.upcoming_games;
+        document.getElementById("last24hGames").textContent = data.counts.last_24h_games;
+
+        const latestImport = data.latestImport;
+        document.getElementById("latestImport").textContent = latestImport
+          ? `Status: ${latestImport.status}, start: ${formatDate(latestImport.started_at)}, slut: ${formatDate(
+              latestImport.finished_at
+            )}, importerade matcher: ${latestImport.imported_matches || 0}`
+          : "Ingen importlogg hittades.";
+
+        const tbody = document.getElementById("failuresBody");
+        tbody.innerHTML = "";
+        if (!data.failedImports.length) {
+          tbody.innerHTML = '<tr><td colspan="3" class="muted">Inga fel registrerade.</td></tr>';
+        } else {
+          for (const row of data.failedImports) {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td>${formatDate(row.started_at)}</td><td>${(row.competitions || []).join(", ")}</td><td>${row.error_message || "Okänt fel"}</td>`;
+            tbody.appendChild(tr);
+          }
+        }
+
+        setDashboardVisible(true);
+      }
+
+      loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        loginError.textContent = "";
+
+        const formData = new FormData(loginForm);
+        const body = Object.fromEntries(formData.entries());
+
+        const response = await fetch("/api/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+          loginError.textContent = "Fel användarnamn eller lösenord.";
+          return;
+        }
+
+        await loadStats();
+      });
+
+      refreshBtn.addEventListener("click", loadStats);
+      logoutBtn.addEventListener("click", async () => {
+        await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+        setDashboardVisible(false);
+      });
+
+      loadStats().catch(() => {
+        setDashboardVisible(false);
+      });
+    </script>
+  </body>
+</html>
