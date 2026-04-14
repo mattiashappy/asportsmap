@@ -143,6 +143,7 @@
       const dashboard = document.getElementById("dashboard");
       const loginForm = document.getElementById("loginForm");
       const loginError = document.getElementById("loginError");
+      const latestImportEl = document.getElementById("latestImport");
       const refreshBtn = document.getElementById("refreshBtn");
       const logoutBtn = document.getElementById("logoutBtn");
 
@@ -172,7 +173,7 @@
         document.getElementById("last24hGames").textContent = data.counts.last_24h_games;
 
         const latestImport = data.latestImport;
-        document.getElementById("latestImport").textContent = latestImport
+        latestImportEl.textContent = latestImport
           ? `Status: ${latestImport.status}, start: ${formatDate(latestImport.started_at)}, slut: ${formatDate(
               latestImport.finished_at
             )}, importerade matcher: ${latestImport.imported_matches || 0}`
@@ -212,7 +213,11 @@
           return;
         }
 
-        await loadStats();
+        try {
+          await loadStats();
+        } catch (error) {
+          loginError.textContent = "Inloggad men kunde inte läsa adminstatistik. Kör db/schema.sql och försök igen.";
+        }
       });
 
       refreshBtn.addEventListener("click", loadStats);
@@ -223,6 +228,7 @@
 
       loadStats().catch(() => {
         setDashboardVisible(false);
+        latestImportEl.textContent = "Kunde inte läsa adminstatistik just nu.";
       });
     </script>
   </body>

@@ -69,6 +69,23 @@ function verifySessionToken(token) {
   }
 }
 
+
+async function ensureImportRunsTable() {
+  if (!pool) return;
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS import_runs (
+      id BIGSERIAL PRIMARY KEY,
+      status TEXT NOT NULL,
+      started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      finished_at TIMESTAMPTZ,
+      competitions TEXT[] NOT NULL DEFAULT '{}',
+      imported_matches INTEGER NOT NULL DEFAULT 0,
+      error_message TEXT
+    )
+  `);
+}
+
 function requireAdminAuth(req, res, next) {
   const cookies = readCookies(req);
   const session = verifySessionToken(cookies.admin_session);
@@ -156,6 +173,8 @@ app.get("/api/admin/stats", requireAdminAuth, async (_req, res) => {
   }
 
   try {
+    await ensureImportRunsTable();
+
     const [gameCounts, latestImport, failedImports] = await Promise.all([
       pool.query(
         `
