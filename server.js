@@ -1,4 +1,5 @@
 const path = require("path");
+const crypto = require("crypto");
 const express = require("express");
 const { Pool } = require("pg");
 
@@ -8,6 +9,11 @@ const port = process.env.PORT || 3000;
 const connectionString = process.env.DATABASE_URL;
 const useSsl = process.env.PGSSLMODE !== "disable";
 
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin";
+const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || "change-this-admin-secret";
+const ADMIN_SESSION_TTL_MS = Number(process.env.ADMIN_SESSION_TTL_MS || 8 * 60 * 60 * 1000);
+
 const pool = connectionString
   ? new Pool({
       connectionString,
@@ -15,7 +21,65 @@ const pool = connectionString
     })
   : null;
 
+app.use(express.json());
 app.use(express.static(path.join(__dirname)));
+
+function toBase64Url(value) {
+  return Buffer.from(value).toString("base64url");
+}
+
+function signToken(payload) {
+  return crypto.createHmac("sha256", ADMIN_SESSION_SECRET).update(payload).digest("base64url");
+}
+
+function buildSessionToken(username) {
+  const payload = JSON.stringify({
+    username,
+    exp: Date.now() + ADMIN_SESSION_TTL_MS
+  });
+  const encodedPayload = toBase64Url(payload);
+  const signature = signToken(encodedPayload);
+  return `${encodedPayload}.${signature}`;
+}
+
+function readCookies(req) {
+  const header = req.headers.cookie || "";
+  return header.split(";").reduce((acc, part) => {
+    const [key, ...rest] = part.trim().split("=");
+    if (!key) return acc;
+    acc[key] = decodeURIComponent(rest.join("="));
+    return acc;
+  }, {});
+}
+
+function verifySessionToken(token) {
+  if (!token || !token.includes(".")) return null;
+
+  const [encodedPayload, signature] = token.split(".");
+  const expected = signToken(encodedPayload);
+
+  if (signature !== expected) return null;
+
+  try {
+    const payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+    if (!payload.exp || Date.now() > payload.exp) return null;
+    return payload;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function requireAdminAuth(req, res, next) {
+  const cookies = readCookies(req);
+  const session = verifySessionToken(cookies.admin_session);
+
+  if (!session) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  req.admin = session;
+  return next();
+}
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
@@ -58,6 +122,85 @@ app.get("/api/games", async (_req, res) => {
       details: error.message
     });
   }
+});
+
+app.post("/api/admin/login", (req, res) => {
+  const { username, password } = req.body || {};
+
+  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  const token = buildSessionToken(username);
+  const secure = process.env.NODE_ENV === "production";
+  res.setHeader(
+    "Set-Cookie",
+    `admin_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${Math.floor(
+      ADMIN_SESSION_TTL_MS / 1000
+    )}${secure ? "; Secure" : ""}`
+  );
+
+  return res.json({ ok: true });
+});
+
+app.post("/api/admin/logout", (_req, res) => {
+  res.setHeader("Set-Cookie", "admin_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0");
+  res.json({ ok: true });
+});
+
+app.get("/api/admin/stats", requireAdminAuth, async (_req, res) => {
+  if (!pool) {
+    return res.status(500).json({
+      error: "DATABASE_URL is not set. Configure your Heroku Postgres URL first."
+    });
+  }
+
+  try {
+    const [gameCounts, latestImport, failedImports] = await Promise.all([
+      pool.query(
+        `
+        SELECT
+          COUNT(*)::int AS total_games,
+          COUNT(*) FILTER (WHERE kickoff >= NOW())::int AS upcoming_games,
+          COUNT(*) FILTER (WHERE kickoff >= NOW() - INTERVAL '24 hours')::int AS last_24h_games
+        FROM games
+      `
+      ),
+      pool.query(
+        `
+        SELECT id, status, started_at, finished_at, competitions, imported_matches, error_message
+        FROM import_runs
+        ORDER BY started_at DESC
+        LIMIT 1
+      `
+      ),
+      pool.query(
+        `
+        SELECT id, started_at, finished_at, competitions, error_message
+        FROM import_runs
+        WHERE status = 'failed'
+        ORDER BY started_at DESC
+        LIMIT 10
+      `
+      )
+    ]);
+
+    res.json({
+      counts: gameCounts.rows[0] || { total_games: 0, upcoming_games: 0, last_24h_games: 0 },
+      latestImport: latestImport.rows[0] || null,
+      failedImports: failedImports.rows
+    });
+  } catch (error) {
+    console.error("Error reading admin stats", error);
+    res.status(500).json({
+      error: "Failed to load admin stats",
+      details: error.message
+    });
+  }
+});
+
+app.get("/admin", (_req, res) => {
+  res.sendFile(path.join(__dirname, "admin.html"));
 });
 
 app.get("*", (_req, res) => {

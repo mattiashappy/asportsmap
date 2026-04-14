@@ -26,3 +26,16 @@ CREATE TABLE IF NOT EXISTS venue_locations (
   source TEXT NOT NULL DEFAULT 'fallback',
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS import_runs (
+  id BIGSERIAL PRIMARY KEY,
+  status TEXT NOT NULL,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  finished_at TIMESTAMPTZ,
+  competitions TEXT[] NOT NULL DEFAULT '{}',
+  imported_matches INTEGER NOT NULL DEFAULT 0,
+  error_message TEXT
+);
+
+CREATE INDEX IF NOT EXISTS import_runs_started_at_idx ON import_runs (started_at DESC);
+CREATE INDEX IF NOT EXISTS import_runs_status_idx ON import_runs (status);

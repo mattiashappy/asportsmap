@@ -184,6 +184,57 @@ async function resolveCoords(match, locationCache) {
   return fallback;
 }
 
+
+async function ensureImportRunsTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS import_runs (
+      id BIGSERIAL PRIMARY KEY,
+      status TEXT NOT NULL,
+      started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      finished_at TIMESTAMPTZ,
+      competitions TEXT[] NOT NULL DEFAULT '{}',
+      imported_matches INTEGER NOT NULL DEFAULT 0,
+      error_message TEXT
+    )
+  `);
+}
+
+async function startImportRun() {
+  const { rows } = await pool.query(
+    `
+      INSERT INTO import_runs (status, competitions, started_at)
+      VALUES ('running', $1::text[], NOW())
+      RETURNING id
+    `,
+    [COMPETITIONS]
+  );
+  return rows[0].id;
+}
+
+async function completeImportRun(runId, importedMatches) {
+  await pool.query(
+    `
+      UPDATE import_runs
+      SET status = 'success', imported_matches = $2, finished_at = NOW(), error_message = NULL
+      WHERE id = $1
+    `,
+    [runId, importedMatches]
+  );
+}
+
+async function failImportRun(runId, errorMessage) {
+  if (!runId) return;
+
+  await pool.query(
+    `
+      UPDATE import_runs
+      SET status = 'failed', finished_at = NOW(), error_message = $2
+      WHERE id = $1
+    `,
+    [runId, String(errorMessage || 'Unknown import error').slice(0, 2000)]
+  );
+}
+
 async function fetchCompetitionMatches(code) {
   const url = `https://api.football-data.org/v4/competitions/${code}/matches`;
   const response = await fetch(url, {
@@ -274,8 +325,13 @@ async function upsertMatches(matches) {
 }
 
 async function main() {
+  let runId = null;
+
   try {
     await ensureVenueLocationsTable();
+    await ensureImportRunsTable();
+    runId = await startImportRun();
+
     const locationCache = await loadVenueLocationCache();
 
     let total = 0;
@@ -293,8 +349,10 @@ async function main() {
       console.log(`Imported/updated ${imported} matches from competition ${code}`);
     }
 
+    await completeImportRun(runId, total);
     console.log(`Done. Imported/updated ${total} matches total.`);
   } catch (error) {
+    await failImportRun(runId, error.message);
     console.error(error.message);
     process.exitCode = 1;
   } finally {
