@@ -136,6 +136,24 @@ main {
   font-style: italic;
 }
 
+.card-actions {
+  margin-top: 12px;
+}
+
+.card-actions button {
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.card-actions button:disabled {
+  background: #b9c9b2;
+  cursor: not-allowed;
+}
+
 .marker-pin {
   width: 16px;
   height: 16px;
