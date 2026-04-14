@@ -1,4 +1,4 @@
-const API_URL = window.SPORTSMAP_API_URL || "/api/games";
+const API_URL = window.ASPORTMAP_API_URL || window.SPORTSMAP_API_URL || "/api/games";
 
 const map = L.map("map", { zoomControl: false }).setView([25, 5], 2);
 L.control.zoom({ position: "topright" }).addTo(map);
