@@ -20,7 +20,6 @@ const elements = {
   toDate: document.getElementById("toDate"),
   card: document.getElementById("gameCard"),
   stadiumName: document.getElementById("stadiumName"),
-  locationText: document.getElementById("locationText"),
   teamsCode: document.getElementById("teamsCode"),
   teamsFull: document.getElementById("teamsFull"),
   flag: document.getElementById("countryFlag"),
@@ -103,7 +102,6 @@ function clearMarkers() {
 function showGame(game) {
   elements.card.classList.remove("hidden");
   elements.stadiumName.textContent = game.venue;
-  elements.locationText.textContent = `${game.city}, ${game.country} — Capacity: ${game.capacity}`;
   elements.teamsCode.textContent = `${game.homeTeam.slice(0, 3).toUpperCase()} × ${game.awayTeam.slice(0, 3).toUpperCase()}`;
   elements.teamsFull.textContent = `${game.homeTeam} vs ${game.awayTeam}`;
   elements.competition.textContent = game.competition;
