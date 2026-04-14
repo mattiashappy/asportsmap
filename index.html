@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SportsMap</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <h1><span>sportsmap</span>.world</h1>
+        <p>Upcoming football games around the world</p>
+      </div>
+      <div class="search-wrapper">
+        <input id="searchInput" type="search" placeholder="Search city, stadium, team..." />
+      </div>
+    </header>
+
+    <section class="controls">
+      <div class="date-card">
+        <div class="range-labels">
+          <strong id="fromDate">--</strong>
+          <strong id="toDate">--</strong>
+        </div>
+        <input id="dateRange" type="range" min="0" max="30" value="30" />
+        <small>Show games in the next <span id="rangeDays">30</span> days</small>
+      </div>
+    </section>
+
+    <main>
+      <div id="map"></div>
+      <aside id="gameCard" class="game-card hidden">
+        <h2 id="stadiumName"></h2>
+        <p id="locationText"></p>
+        <div class="matchup">
+          <div>
+            <div id="teamsCode" class="teams-code"></div>
+            <div id="teamsFull"></div>
+          </div>
+          <img id="countryFlag" alt="country flag" />
+        </div>
+        <p id="competition"></p>
+        <p id="gameTime" class="muted"></p>
+      </aside>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="app.js"></script>
+  </body>
+</html>
