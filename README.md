@@ -1,49 +1,105 @@
 # asportsmap
 
-A simple Leaflet-based map UI for upcoming football games.
+SportsMap är nu förberedd för att köras på Heroku med Postgres.
 
-## Run locally
+## Teknisk översikt
+
+- `server.js` kör en Express-server som:
+  - serverar frontend-filerna (`index.html`, `app.js`, `styles.css`),
+  - exponerar `GET /api/games` som hämtar matcher från Postgres,
+  - har `GET /health` för enkel hälsokontroll.
+- Frontend (`app.js`) läser matcher från `/api/games` som standard.
+
+## 1) Installera lokalt
 
 ```bash
-python3 -m http.server 4173
+npm install
 ```
 
-Open <http://localhost:4173>.
+## 2) Konfigurera databasanslutning
 
-## API integration
+Appen använder miljövariabeln `DATABASE_URL`.
 
-By default the app reads from `mock-games.json`.
+Exempel (lokalt):
 
-To wire your API, set `window.SPORTSMAP_API_URL` before `app.js` in `index.html`:
-
-```html
-<script>
-  window.SPORTSMAP_API_URL = "https://your-api.example.com/upcoming-games";
-</script>
+```bash
+export DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DBNAME'
 ```
 
-Expected JSON payload:
+För Heroku sätter du config var:
+
+```bash
+heroku config:set DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DBNAME' -a <din-app>
+```
+
+> Tips: På Heroku sätts `DATABASE_URL` normalt automatiskt om du lägger till Heroku Postgres add-on.
+
+## 3) Skapa tabell + index
+
+Kör SQL från `db/schema.sql`:
+
+```bash
+psql "$DATABASE_URL" -f db/schema.sql
+```
+
+## 4) Lägg in testdata (valfritt)
+
+```bash
+psql "$DATABASE_URL" -f db/seed.sql
+```
+
+## 5) Starta lokalt
+
+```bash
+npm start
+```
+
+Öppna <http://localhost:3000>.
+
+## 6) Deploy på Heroku
+
+`Procfile` finns redan och kör:
+
+```txt
+web: node server.js
+```
+
+Vanlig deploy-process:
+
+```bash
+git push heroku main
+```
+
+(eller aktuell branch beroende på ditt Heroku/Git-flöde).
+
+## API-format
+
+`GET /api/games` returnerar:
 
 ```json
 {
   "games": [
     {
-      "id": "string",
+      "id": "match-1",
       "sport": "football",
-      "competition": "NFL",
-      "venue": "Arrowhead Stadium",
-      "city": "Kansas City",
-      "country": "USA",
-      "capacity": 76416,
-      "kickoff": "2026-11-24T20:00:00-06:00",
-      "lat": 39.0489,
-      "lng": -94.4839,
-      "homeTeam": "Kansas City Chiefs",
-      "awayTeam": "Seattle Seahawks",
-      "flagUrl": "https://flagcdn.com/us.svg"
+      "competition": "Premier League",
+      "venue": "Anfield",
+      "city": "Liverpool",
+      "country": "England",
+      "capacity": 54074,
+      "kickoff": "2026-04-17T13:00:00.000Z",
+      "lat": 53.4308,
+      "lng": -2.9608,
+      "homeTeam": "Liverpool",
+      "awayTeam": "Arsenal",
+      "flagUrl": "https://flagcdn.com/gb-eng.svg"
     }
   ]
 }
 ```
 
-Only `sport === "football"` is rendered right now.
+## Felsökning
+
+- `DATABASE_URL is not set` → sätt `DATABASE_URL` i din miljö/Heroku config vars.
+- `relation "games" does not exist` → kör `db/schema.sql`.
+- Tom karta → kontrollera att det finns framtida matcher i tabellen (`kickoff >= NOW()`).
