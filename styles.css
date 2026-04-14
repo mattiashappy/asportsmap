@@ -1,8 +1,9 @@
 :root {
   color-scheme: light;
   font-family: Inter, Arial, sans-serif;
-  --navy: #0d1252;
-  --accent: #2f55ff;
+  --primary: #8cac7f;
+  --primary-dark: #6f8f66;
+  --accent: #8cac7f;
   --card: #ffffffee;
   --text: #1d2230;
 }
@@ -14,12 +15,12 @@
 body {
   margin: 0;
   color: var(--text);
-  background: #eef1f8;
+  background: #f3f6f1;
 }
 
 .topbar {
   height: 74px;
-  background: var(--navy);
+  background: var(--primary);
   color: #fff;
   display: flex;
   justify-content: space-between;
@@ -51,7 +52,7 @@ body {
 .search-wrapper input {
   width: 100%;
   border-radius: 8px;
-  border: 1px solid #d0d6ed;
+  border: 1px solid #c8d6c0;
   padding: 10px 14px;
   font-size: 15px;
 }
@@ -141,7 +142,7 @@ main {
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid white;
-  box-shadow: 0 0 0 2px #132067;
+  box-shadow: 0 0 0 2px var(--primary-dark);
 }
 
 @media (max-width: 700px) {
