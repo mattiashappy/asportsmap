@@ -1,6 +1,6 @@
 # asportsmap
 
-SportsMap är nu förberedd för att köras på Heroku med Postgres.
+asportmap.com är nu förberedd för att köras på Heroku med Postgres.
 
 ## Teknisk översikt
 

@@ -2,8 +2,7 @@
   color-scheme: light;
   font-family: Inter, Arial, sans-serif;
   --primary: #8cac7f;
-  --primary-dark: #6f8f66;
-  --accent: #8cac7f;
+  --primary-dark: #6f8e64;
   --card: #ffffffee;
   --text: #1d2230;
 }
@@ -140,7 +139,7 @@ main {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--primary);
   border: 2px solid white;
   box-shadow: 0 0 0 2px var(--primary-dark);
 }
