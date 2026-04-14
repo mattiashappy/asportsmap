@@ -1,49 +1,128 @@
 # asportsmap
 
-A simple Leaflet-based map UI for upcoming football games.
+SportsMap är nu förberedd för att köras på Heroku med Postgres.
 
-## Run locally
+## Teknisk översikt
+
+- `server.js` kör en Express-server som:
+  - serverar frontend-filerna (`index.html`, `app.js`, `styles.css`),
+  - exponerar `GET /api/games` som hämtar matcher från Postgres,
+  - har `GET /health` för enkel hälsokontroll.
+- `scripts/import-matches.js` importerar matcher från football-data.org till tabellen `games`.
+- Frontend (`app.js`) läser matcher från `/api/games` som standard.
+
+## 1) Installera lokalt
 
 ```bash
-python3 -m http.server 4173
+npm install
 ```
 
-Open <http://localhost:4173>.
+## 2) Konfigurera miljövariabler
 
-## API integration
+Appen använder:
 
-By default the app reads from `mock-games.json`.
+- `DATABASE_URL` (Postgres)
+- `X_AUTH` (din football-data API token, rekommenderad)
+- `FOOTBALL_DATA_API_TOKEN` (alternativt namn som också stöds)
+- `FOOTBALL_COMPETITIONS` (valfri, kommaseparerad lista med competition ids, default `2013`)
 
-To wire your API, set `window.SPORTSMAP_API_URL` before `app.js` in `index.html`:
+Exempel (lokalt):
 
-```html
-<script>
-  window.SPORTSMAP_API_URL = "https://your-api.example.com/upcoming-games";
-</script>
+```bash
+export DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DBNAME'
+export X_AUTH='your-football-data-token'
+# alternativt:
+export FOOTBALL_DATA_API_TOKEN='your-football-data-token'
+export FOOTBALL_COMPETITIONS='2013,2016,2021'
 ```
 
-Expected JSON payload:
+För Heroku:
+
+```bash
+heroku config:set DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DBNAME' -a <din-app>
+heroku config:set X_AUTH='your-football-data-token' -a <din-app>
+# alternativt:
+heroku config:set FOOTBALL_DATA_API_TOKEN='your-football-data-token' -a <din-app>
+heroku config:set FOOTBALL_COMPETITIONS='2013,2016,2021' -a <din-app>
+```
+
+> Importscriptet försöker flera vanliga namn: `X_AUTH`, `X-Auth`, `X_AUTH_TOKEN`, `X-Auth-Token`, `FOOTBALL_DATA_API_TOKEN`, `FOOTBALL_DATA_TOKEN`.
+
+## 3) Skapa tabell + index
+
+Kör SQL från `db/schema.sql`:
+
+```bash
+psql "$DATABASE_URL" -f db/schema.sql
+```
+
+## 4) Importera matcher från API
+
+Kör import manuellt:
+
+```bash
+npm run import:matches
+```
+
+För Heroku one-off:
+
+```bash
+heroku run npm run import:matches -a <din-app>
+```
+
+## 5) Starta lokalt
+
+```bash
+npm start
+```
+
+Öppna <http://localhost:3000>.
+
+## 6) Deploy på Heroku
+
+`Procfile` finns redan och kör:
+
+```txt
+web: node server.js
+```
+
+Vanlig deploy-process:
+
+```bash
+git push heroku main
+```
+
+(eller aktuell branch beroende på ditt Heroku/Git-flöde).
+
+## API-format
+
+`GET /api/games` returnerar:
 
 ```json
 {
   "games": [
     {
-      "id": "string",
+      "id": "12345",
       "sport": "football",
-      "competition": "NFL",
-      "venue": "Arrowhead Stadium",
-      "city": "Kansas City",
-      "country": "USA",
-      "capacity": 76416,
-      "kickoff": "2026-11-24T20:00:00-06:00",
-      "lat": 39.0489,
-      "lng": -94.4839,
-      "homeTeam": "Kansas City Chiefs",
-      "awayTeam": "Seattle Seahawks",
-      "flagUrl": "https://flagcdn.com/us.svg"
+      "competition": "Championship",
+      "venue": "Some Stadium",
+      "city": "England",
+      "country": "England",
+      "capacity": null,
+      "kickoff": "2026-04-17T13:00:00.000Z",
+      "lat": 52.3555,
+      "lng": -1.1743,
+      "homeTeam": "Team A",
+      "awayTeam": "Team B",
+      "flagUrl": "https://crests.football-data.org/770.svg"
     }
   ]
 }
 ```
 
-Only `sport === "football"` is rendered right now.
+## Felsökning
+
+- `DATABASE_URL is not set` → sätt `DATABASE_URL` i miljön/Heroku config vars.
+- `Missing API token` vid import → sätt `X_AUTH` (rekommenderat) eller `FOOTBALL_DATA_API_TOKEN` i Heroku config vars.
+- `relation "games" does not exist` → kör `db/schema.sql`.
+- Tom karta → kör import och kontrollera att tabellen innehåller framtida matcher (`kickoff >= NOW()`).
