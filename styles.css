@@ -1,0 +1,167 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, Arial, sans-serif;
+  --navy: #0d1252;
+  --accent: #2f55ff;
+  --card: #ffffffee;
+  --text: #1d2230;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background: #eef1f8;
+}
+
+.topbar {
+  height: 74px;
+  background: var(--navy);
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.brand h1 span {
+  font-style: italic;
+}
+
+.brand p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.search-wrapper {
+  width: min(380px, 50vw);
+}
+
+.search-wrapper input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #d0d6ed;
+  padding: 10px 14px;
+  font-size: 15px;
+}
+
+.controls {
+  position: absolute;
+  top: 90px;
+  left: 16px;
+  z-index: 1000;
+}
+
+.date-card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 12px;
+  width: 320px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.date-card input {
+  width: 100%;
+}
+
+main {
+  position: relative;
+}
+
+#map {
+  width: 100%;
+  height: calc(100vh - 74px);
+}
+
+.game-card {
+  position: absolute;
+  right: 16px;
+  top: 96px;
+  width: min(430px, calc(100vw - 32px));
+  background: var(--card);
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  z-index: 900;
+}
+
+.game-card.hidden {
+  display: none;
+}
+
+.game-card h2 {
+  margin: 0 0 8px;
+}
+
+.matchup {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0;
+}
+
+.teams-code {
+  font-size: 44px;
+  font-weight: 700;
+}
+
+#countryFlag {
+  width: 70px;
+  height: 45px;
+  border: 1px solid #c9c9c9;
+  object-fit: cover;
+}
+
+.muted {
+  color: #5f6474;
+  font-style: italic;
+}
+
+.marker-pin {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid white;
+  box-shadow: 0 0 0 2px #132067;
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    height: auto;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px;
+  }
+
+  #map {
+    height: calc(100vh - 130px);
+  }
+
+  .controls {
+    top: 136px;
+  }
+
+  .game-card {
+    top: auto;
+    bottom: 16px;
+  }
+}

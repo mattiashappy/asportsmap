@@ -1,0 +1,49 @@
+{
+  "games": [
+    {
+      "id": "nfl-kc-sea",
+      "sport": "football",
+      "competition": "NFL",
+      "venue": "Arrowhead Stadium",
+      "city": "Kansas City",
+      "country": "USA",
+      "capacity": 76416,
+      "kickoff": "2026-11-24T20:00:00-06:00",
+      "lat": 39.0489,
+      "lng": -94.4839,
+      "homeTeam": "Kansas City Chiefs",
+      "awayTeam": "Seattle Seahawks",
+      "flagUrl": "https://flagcdn.com/us.svg"
+    },
+    {
+      "id": "qatar-eng-usa",
+      "sport": "football",
+      "competition": "Friendly",
+      "venue": "Al Bayt Stadium",
+      "city": "Al Khor",
+      "country": "Qatar",
+      "capacity": 60000,
+      "kickoff": "2026-10-12T19:00:00+03:00",
+      "lat": 25.6528,
+      "lng": 51.4887,
+      "homeTeam": "England",
+      "awayTeam": "United States",
+      "flagUrl": "https://flagcdn.com/qa.svg"
+    },
+    {
+      "id": "uk-liv-ars",
+      "sport": "football",
+      "competition": "Premier League",
+      "venue": "Anfield",
+      "city": "Liverpool",
+      "country": "United Kingdom",
+      "capacity": 61276,
+      "kickoff": "2026-09-09T16:30:00+01:00",
+      "lat": 53.4308,
+      "lng": -2.9608,
+      "homeTeam": "Liverpool",
+      "awayTeam": "Arsenal",
+      "flagUrl": "https://flagcdn.com/gb.svg"
+    }
+  ]
+}
