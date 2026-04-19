@@ -9,7 +9,7 @@ const port = process.env.PORT || 3000;
 const connectionString = process.env.DATABASE_URL;
 const useSsl = process.env.PGSSLMODE !== "disable";
 
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
+const ADMIN_USERNAME = process.env.ADMIN_NAME || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin";
 const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || "change-this-admin-secret";
 const ADMIN_SESSION_TTL_MS = Number(process.env.ADMIN_SESSION_TTL_MS || 8 * 60 * 60 * 1000);
