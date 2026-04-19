@@ -111,22 +111,26 @@ app.get("/api/games", async (_req, res) => {
 
   const query = `
     SELECT
-      id,
-      sport,
-      competition,
-      venue,
-      city,
-      country,
-      capacity,
-      kickoff,
-      lat,
-      lng,
-      home_team AS "homeTeam",
-      away_team AS "awayTeam",
-      flag_url AS "flagUrl"
-    FROM games
-    WHERE sport = 'football' AND kickoff >= NOW()
-    ORDER BY kickoff ASC
+      g.id,
+      g.sport,
+      g.competition,
+      g.venue,
+      g.city,
+      g.country,
+      g.capacity,
+      g.kickoff,
+      g.lat,
+      g.lng,
+      g.home_team AS "homeTeam",
+      g.away_team AS "awayTeam",
+      g.flag_url AS "flagUrl",
+      vl.affiliate_url AS "affiliateUrl",
+      vl.affiliate_label AS "affiliateLabel"
+    FROM games g
+    LEFT JOIN venue_locations vl
+      ON vl.venue_key = lower(trim(g.venue)) || '|' || lower(trim(g.country))
+    WHERE g.sport = 'football' AND g.kickoff >= NOW()
+    ORDER BY g.kickoff ASC
   `;
 
   try {
@@ -241,6 +245,11 @@ app.get("/api/admin/venues", requireAdminAuth, async (_req, res) => {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    await pool.query(`
+      ALTER TABLE venue_locations
+        ADD COLUMN IF NOT EXISTS affiliate_url TEXT,
+        ADD COLUMN IF NOT EXISTS affiliate_label TEXT
+    `);
 
     const { rows } = await pool.query(`
       SELECT
@@ -251,7 +260,9 @@ app.get("/api/admin/venues", requireAdminAuth, async (_req, res) => {
         COALESCE(vl.lat, g.lat) AS lat,
         COALESCE(vl.lng, g.lng) AS lng,
         COALESCE(vl.source, 'auto') AS source,
-        counts.match_count
+        counts.match_count,
+        vl.affiliate_url,
+        vl.affiliate_label
       FROM (
         SELECT DISTINCT ON (venue, country) venue, city, country, lat, lng
         FROM games
@@ -274,7 +285,7 @@ app.put("/api/admin/venues/:venueKey", requireAdminAuth, async (req, res) => {
   if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
 
   const { venueKey } = req.params;
-  const { lat, lng, venue_name, country } = req.body || {};
+  const { lat, lng, venue_name, country, affiliate_url, affiliate_label } = req.body || {};
   const latNum = Number(lat);
   const lngNum = Number(lng);
 
@@ -284,14 +295,16 @@ app.put("/api/admin/venues/:venueKey", requireAdminAuth, async (req, res) => {
 
   try {
     await pool.query(`
-      INSERT INTO venue_locations (venue_key, venue_name, country, lat, lng, source, updated_at)
-      VALUES ($1, $2, $3, $4, $5, 'manual', NOW())
+      INSERT INTO venue_locations (venue_key, venue_name, country, lat, lng, source, affiliate_url, affiliate_label, updated_at)
+      VALUES ($1, $2, $3, $4, $5, 'manual', $6, $7, NOW())
       ON CONFLICT (venue_key) DO UPDATE SET
         lat = EXCLUDED.lat,
         lng = EXCLUDED.lng,
         source = 'manual',
+        affiliate_url = EXCLUDED.affiliate_url,
+        affiliate_label = EXCLUDED.affiliate_label,
         updated_at = NOW()
-    `, [venueKey, venue_name || venueKey, country || "", latNum, lngNum]);
+    `, [venueKey, venue_name || venueKey, country || "", latNum, lngNum, affiliate_url || null, affiliate_label || null]);
 
     await pool.query(
       `UPDATE games SET lat = $1, lng = $2 WHERE lower(trim(venue)) || '|' || lower(trim(country)) = $3`,

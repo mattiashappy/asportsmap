@@ -135,8 +135,49 @@ main {
   color: var(--text);
 }
 
-.game-card h2 {
-  margin: 0 28px 8px 0;
+.card-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  margin-right: 28px;
+}
+
+.card-nav h2 {
+  margin: 0;
+  flex: 1;
+  font-size: 1rem;
+}
+
+.nav-arrow {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px 6px;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+.nav-arrow:hover {
+  color: var(--text);
+}
+
+.nav-arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.affiliate-btn {
+  display: inline-block;
+  background: var(--primary);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .matchup {
@@ -166,20 +207,6 @@ main {
 
 .card-actions {
   margin-top: 12px;
-}
-
-.card-actions button {
-  border: none;
-  background: var(--primary);
-  color: #fff;
-  border-radius: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.card-actions button:disabled {
-  background: #b9c9b2;
-  cursor: not-allowed;
 }
 
 .marker-pin {

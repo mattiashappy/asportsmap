@@ -32,7 +32,9 @@ const elements = {
   flag: document.getElementById("countryFlag"),
   competition: document.getElementById("competition"),
   gameTime: document.getElementById("gameTime"),
+  prevGameBtn: document.getElementById("prevGameBtn"),
   nextGameBtn: document.getElementById("nextGameBtn"),
+  affiliateBtn: document.getElementById("affiliateBtn"),
   closeCardBtn: document.getElementById("closeCardBtn")
 };
 
@@ -60,7 +62,9 @@ function normalizeGame(raw) {
     lng: Number(raw.lng),
     homeTeam: raw.homeTeam,
     awayTeam: raw.awayTeam,
-    flagUrl: raw.flagUrl || ""
+    flagUrl: raw.flagUrl || "",
+    affiliateUrl: raw.affiliateUrl || "",
+    affiliateLabel: raw.affiliateLabel || ""
   };
 }
 
@@ -130,9 +134,10 @@ function getVenueGames(game) {
     .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
 }
 
-function updateNextGameButton() {
-  const hasNext = state.venueGames.length > 1;
-  elements.nextGameBtn.disabled = !hasNext;
+function updateNavArrows() {
+  const many = state.venueGames.length > 1;
+  elements.prevGameBtn.disabled = !many;
+  elements.nextGameBtn.disabled = !many;
 }
 
 function showGame(game) {
@@ -144,7 +149,15 @@ function showGame(game) {
   elements.teamsFull.textContent = `${game.homeTeam} vs ${game.awayTeam}`;
   elements.competition.textContent = game.competition;
   elements.gameTime.textContent = formatDate(game.kickoff);
-  updateNextGameButton();
+  updateNavArrows();
+
+  if (game.affiliateUrl) {
+    elements.affiliateBtn.href = game.affiliateUrl;
+    elements.affiliateBtn.textContent = game.affiliateLabel || "Buy tickets";
+    elements.affiliateBtn.hidden = false;
+  } else {
+    elements.affiliateBtn.hidden = true;
+  }
 
   if (game.flagUrl) {
     elements.flag.src = game.flagUrl;
@@ -173,6 +186,11 @@ function renderMarkers() {
 function wireEvents() {
   elements.search.addEventListener("input", applyFilters);
   elements.range.addEventListener("input", applyFilters);
+  elements.prevGameBtn.addEventListener("click", () => {
+    if (state.venueGames.length < 2) return;
+    const prevIndex = (state.venueGameIndex - 1 + state.venueGames.length) % state.venueGames.length;
+    showGame(state.venueGames[prevIndex]);
+  });
   elements.nextGameBtn.addEventListener("click", () => {
     if (state.venueGames.length < 2) return;
     const nextIndex = (state.venueGameIndex + 1) % state.venueGames.length;

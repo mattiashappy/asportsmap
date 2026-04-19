@@ -182,6 +182,8 @@
                 <th>Matcher</th>
                 <th>Lat</th>
                 <th>Lng</th>
+                <th>Länktext</th>
+                <th>Affiliate URL</th>
                 <th></th>
               </tr>
             </thead>
@@ -314,6 +316,8 @@
             <td>${v.match_count}</td>
             <td><input class="venue-input lat-input" type="number" step="0.0001" value="${Number(v.lat).toFixed(4)}" /></td>
             <td><input class="venue-input lng-input" type="number" step="0.0001" value="${Number(v.lng).toFixed(4)}" /></td>
+            <td><input class="venue-input affiliate-label-input" type="text" placeholder="Köp biljetter" value="${v.affiliate_label || ""}" /></td>
+            <td><input class="venue-input affiliate-url-input" type="url" placeholder="https://..." value="${v.affiliate_url || ""}" /></td>
             <td>
               <button class="venue-save" data-key="${v.venue_key}" data-name="${v.venue}" data-country="${v.country}">Spara</button>
               <span class="venue-status"></span>
@@ -327,6 +331,8 @@
             const row = btn.closest("tr");
             const lat = row.querySelector(".lat-input").value;
             const lng = row.querySelector(".lng-input").value;
+            const affiliate_label = row.querySelector(".affiliate-label-input").value;
+            const affiliate_url = row.querySelector(".affiliate-url-input").value;
             const statusEl = row.querySelector(".venue-status");
             btn.disabled = true;
             statusEl.textContent = "Sparar...";
@@ -335,7 +341,7 @@
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
-                body: JSON.stringify({ lat, lng, venue_name: btn.dataset.name, country: btn.dataset.country })
+                body: JSON.stringify({ lat, lng, venue_name: btn.dataset.name, country: btn.dataset.country, affiliate_label, affiliate_url })
               });
               statusEl.textContent = res.ok ? "Sparat!" : "Fel vid sparande.";
               if (res.ok) {
