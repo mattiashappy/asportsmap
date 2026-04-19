@@ -236,7 +236,7 @@ app.get("/api/admin/venues", requireAdminAuth, async (_req, res) => {
 
     const { rows } = await pool.query(`
       SELECT
-        lower(g.venue) || '_' || lower(g.country) AS venue_key,
+        lower(trim(g.venue)) || '|' || lower(trim(g.country)) AS venue_key,
         g.venue,
         g.city,
         g.country,
@@ -249,7 +249,7 @@ app.get("/api/admin/venues", requireAdminAuth, async (_req, res) => {
         FROM games
         ORDER BY venue, country
       ) g
-      LEFT JOIN venue_locations vl ON vl.venue_key = lower(g.venue) || '_' || lower(g.country)
+      LEFT JOIN venue_locations vl ON vl.venue_key = lower(trim(g.venue)) || '|' || lower(trim(g.country))
       LEFT JOIN (
         SELECT venue, country, COUNT(*)::int AS match_count FROM games GROUP BY venue, country
       ) counts ON counts.venue = g.venue AND counts.country = g.country
@@ -286,7 +286,7 @@ app.put("/api/admin/venues/:venueKey", requireAdminAuth, async (req, res) => {
     `, [venueKey, venue_name || venueKey, country || "", latNum, lngNum]);
 
     await pool.query(
-      `UPDATE games SET lat = $1, lng = $2 WHERE lower(venue) || '_' || lower(country) = $3`,
+      `UPDATE games SET lat = $1, lng = $2 WHERE lower(trim(venue)) || '|' || lower(trim(country)) = $3`,
       [latNum, lngNum, venueKey]
     );
 
