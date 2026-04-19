@@ -82,6 +82,26 @@
         border-bottom: 1px solid #334155;
         padding: 0.5rem;
       }
+      .venue-input {
+        width: 90px;
+        padding: 0.3rem 0.5rem;
+        margin: 0;
+      }
+      .venue-save {
+        margin-top: 0;
+        padding: 0.3rem 0.6rem;
+        font-size: 0.85rem;
+      }
+      .venue-status {
+        font-size: 0.8rem;
+        margin-left: 0.4rem;
+      }
+      .badge-manual { color: #86efac; }
+      .badge-auto { color: #94a3b8; }
+      #venueSearch {
+        margin-bottom: 0.75rem;
+        max-width: 300px;
+      }
     </style>
   </head>
   <body>
@@ -138,6 +158,26 @@
               </tr>
             </thead>
             <tbody id="failuresBody"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h2>Arenor &amp; koordinater</h2>
+          <p class="muted">Rätta till lat/lng för arenor som hamnat fel på kartan. Ändringarna sparas direkt i databasen.</p>
+          <input id="venueSearch" type="search" placeholder="Filtrera arena..." />
+          <table>
+            <thead>
+              <tr>
+                <th>Arena</th>
+                <th>Stad</th>
+                <th>Land</th>
+                <th>Matcher</th>
+                <th>Lat</th>
+                <th>Lng</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="venuesBody"></tbody>
           </table>
         </div>
       </section>
@@ -220,18 +260,94 @@
 
         try {
           await loadStats();
+          await loadVenues();
         } catch (error) {
           loginError.textContent = "Inloggad men kunde inte läsa adminstatistik. Kör db/schema.sql och försök igen.";
         }
       });
 
-      refreshBtn.addEventListener("click", loadStats);
+      let allVenues = [];
+
+      async function loadVenues() {
+        const response = await fetch("/api/admin/venues", { credentials: "include" });
+        if (!response.ok) return;
+        const data = await response.json();
+        allVenues = data.venues || [];
+        renderVenues(allVenues);
+      }
+
+      function renderVenues(venues) {
+        const tbody = document.getElementById("venuesBody");
+        tbody.innerHTML = "";
+        if (!venues.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="muted">Inga arenor hittades.</td></tr>';
+          return;
+        }
+        for (const v of venues) {
+          const sourceLabel = v.source === "manual"
+            ? '<span class="badge-manual">manuell</span>'
+            : '<span class="badge-auto">auto</span>';
+          const tr = document.createElement("tr");
+          tr.dataset.venueKey = v.venue_key;
+          tr.innerHTML = `
+            <td>${v.venue} ${sourceLabel}</td>
+            <td>${v.city}</td>
+            <td>${v.country}</td>
+            <td>${v.match_count}</td>
+            <td><input class="venue-input lat-input" type="number" step="0.0001" value="${Number(v.lat).toFixed(4)}" /></td>
+            <td><input class="venue-input lng-input" type="number" step="0.0001" value="${Number(v.lng).toFixed(4)}" /></td>
+            <td>
+              <button class="venue-save" data-key="${v.venue_key}" data-name="${v.venue}" data-country="${v.country}">Spara</button>
+              <span class="venue-status"></span>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        }
+
+        tbody.querySelectorAll(".venue-save").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const row = btn.closest("tr");
+            const lat = row.querySelector(".lat-input").value;
+            const lng = row.querySelector(".lng-input").value;
+            const statusEl = row.querySelector(".venue-status");
+            btn.disabled = true;
+            statusEl.textContent = "Sparar...";
+            try {
+              const res = await fetch(`/api/admin/venues/${encodeURIComponent(btn.dataset.key)}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ lat, lng, venue_name: btn.dataset.name, country: btn.dataset.country })
+              });
+              statusEl.textContent = res.ok ? "Sparat!" : "Fel vid sparande.";
+              if (res.ok) {
+                const v = allVenues.find((x) => x.venue_key === btn.dataset.key);
+                if (v) { v.lat = lat; v.lng = lng; v.source = "manual"; }
+              }
+            } catch (_) {
+              statusEl.textContent = "Nätverksfel.";
+            }
+            btn.disabled = false;
+            setTimeout(() => { statusEl.textContent = ""; }, 3000);
+          });
+        });
+      }
+
+      document.getElementById("venueSearch").addEventListener("input", (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        const filtered = q
+          ? allVenues.filter((v) => `${v.venue} ${v.city} ${v.country}`.toLowerCase().includes(q))
+          : allVenues;
+        renderVenues(filtered);
+      });
+
+      refreshBtn.addEventListener("click", () => { loadStats(); loadVenues(); });
       logoutBtn.addEventListener("click", async () => {
         await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
         setDashboardVisible(false);
       });
 
-      loadStats().catch(() => {
+      loadStats().then(() => loadVenues()).catch(() => {
         setDashboardVisible(false);
         latestImportEl.textContent = "Kunde inte läsa adminstatistik just nu.";
       });

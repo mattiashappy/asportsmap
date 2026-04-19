@@ -1,6 +1,10 @@
 const API_URL = window.ASPORTMAP_API_URL || window.SPORTSMAP_API_URL || "/api/games";
 
-const map = L.map("map", { zoomControl: false }).setView([25, 5], 2);
+const map = L.map("map", {
+  zoomControl: false,
+  maxBounds: [[-90, -180], [90, 180]],
+  maxBoundsViscosity: 1.0
+}).setView([25, 5], 2);
 L.control.zoom({ position: "topright" }).addTo(map);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: "© OpenStreetMap contributors"

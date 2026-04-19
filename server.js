@@ -218,6 +218,67 @@ app.get("/api/admin/stats", requireAdminAuth, async (_req, res) => {
   }
 });
 
+app.get("/api/admin/venues", requireAdminAuth, async (_req, res) => {
+  if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
+
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        lower(g.venue) || '_' || lower(g.country) AS venue_key,
+        g.venue,
+        g.city,
+        g.country,
+        COALESCE(vl.lat, g.lat) AS lat,
+        COALESCE(vl.lng, g.lng) AS lng,
+        COALESCE(vl.source, 'auto') AS source,
+        COUNT(g.id)::int AS match_count
+      FROM games g
+      LEFT JOIN venue_locations vl ON vl.venue_key = lower(g.venue) || '_' || lower(g.country)
+      GROUP BY g.venue, g.city, g.country, vl.lat, vl.lng, vl.source
+      ORDER BY g.venue ASC
+    `);
+    res.json({ venues: rows });
+  } catch (error) {
+    console.error("Error reading venues", error);
+    res.status(500).json({ error: "Failed to load venues", details: error.message });
+  }
+});
+
+app.put("/api/admin/venues/:venueKey", requireAdminAuth, async (req, res) => {
+  if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
+
+  const { venueKey } = req.params;
+  const { lat, lng, venue_name, country } = req.body || {};
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+
+  if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+    return res.status(400).json({ error: "lat and lng must be valid numbers" });
+  }
+
+  try {
+    await pool.query(`
+      INSERT INTO venue_locations (venue_key, venue_name, country, lat, lng, source, updated_at)
+      VALUES ($1, $2, $3, $4, $5, 'manual', NOW())
+      ON CONFLICT (venue_key) DO UPDATE SET
+        lat = EXCLUDED.lat,
+        lng = EXCLUDED.lng,
+        source = 'manual',
+        updated_at = NOW()
+    `, [venueKey, venue_name || venueKey, country || "", latNum, lngNum]);
+
+    await pool.query(
+      `UPDATE games SET lat = $1, lng = $2 WHERE lower(venue) || '_' || lower(country) = $3`,
+      [latNum, lngNum, venueKey]
+    );
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error updating venue", error);
+    res.status(500).json({ error: "Failed to update venue", details: error.message });
+  }
+});
+
 app.get("/admin", (_req, res) => {
   res.sendFile(path.join(__dirname, "admin.html"));
 });
