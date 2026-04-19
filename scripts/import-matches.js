@@ -73,8 +73,21 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const CONTINENTAL_AREAS = new Set([
+  "Europe", "South America", "North America", "Africa", "Asia", "Oceania", "World",
+  "UEFA", "CONMEBOL", "CONCACAF", "CAF", "AFC", "OFC", "FIFA"
+]);
+
 function guessCoords(country) {
   return COUNTRY_COORDS[country] || { lat: 20, lng: 0 };
+}
+
+function resolveCountry(match) {
+  const area = match.area?.name || "Unknown";
+  if (CONTINENTAL_AREAS.has(area)) {
+    return match.homeTeam?.area?.name || area;
+  }
+  return area;
 }
 
 function normalizeVenue(venue, country) {
@@ -253,7 +266,7 @@ async function fetchCompetitionMatches(code) {
 
 async function normalizeMatch(match, locationCache) {
   const id = String(match.id);
-  const country = match.area?.name || "Unknown";
+  const country = resolveCountry(match);
   const venue = match.venue || `${match.homeTeam?.name || "Unknown venue"} Stadium`;
   const coords = await resolveCoords(match, locationCache);
 
