@@ -6,7 +6,7 @@ const map = L.map("map", {
   maxBoundsViscosity: 1.0
 }).setView([25, 5], 2);
 L.control.zoom({ position: "topright" }).addTo(map);
-requestAnimationFrame(() => map.invalidateSize());
+new ResizeObserver(() => map.invalidateSize()).observe(document.getElementById("map"));
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: "© OpenStreetMap contributors"
 }).addTo(map);
