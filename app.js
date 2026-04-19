@@ -32,7 +32,8 @@ const elements = {
   flag: document.getElementById("countryFlag"),
   competition: document.getElementById("competition"),
   gameTime: document.getElementById("gameTime"),
-  nextGameBtn: document.getElementById("nextGameBtn")
+  nextGameBtn: document.getElementById("nextGameBtn"),
+  closeCardBtn: document.getElementById("closeCardBtn")
 };
 
 function formatDate(dateLike) {
@@ -176,6 +177,9 @@ function wireEvents() {
     if (state.venueGames.length < 2) return;
     const nextIndex = (state.venueGameIndex + 1) % state.venueGames.length;
     showGame(state.venueGames[nextIndex]);
+  });
+  elements.closeCardBtn.addEventListener("click", () => {
+    elements.card.classList.add("hidden");
   });
 }
 
