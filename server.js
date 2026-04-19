@@ -222,6 +222,18 @@ app.get("/api/admin/venues", requireAdminAuth, async (_req, res) => {
   if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
 
   try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS venue_locations (
+        venue_key TEXT PRIMARY KEY,
+        venue_name TEXT NOT NULL,
+        country TEXT NOT NULL,
+        lat DOUBLE PRECISION NOT NULL,
+        lng DOUBLE PRECISION NOT NULL,
+        source TEXT NOT NULL DEFAULT 'fallback',
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
     const { rows } = await pool.query(`
       SELECT
         lower(g.venue) || '_' || lower(g.country) AS venue_key,
