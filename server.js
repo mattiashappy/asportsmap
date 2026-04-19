@@ -326,6 +326,27 @@ app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-app.listen(port, () => {
-  console.log(`asportmap.com server running on port ${port}`);
-});
+async function runMigrations() {
+  if (!pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS venue_locations (
+      venue_key TEXT PRIMARY KEY,
+      venue_name TEXT NOT NULL,
+      country TEXT NOT NULL,
+      lat DOUBLE PRECISION NOT NULL,
+      lng DOUBLE PRECISION NOT NULL,
+      source TEXT NOT NULL DEFAULT 'fallback',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    ALTER TABLE venue_locations
+      ADD COLUMN IF NOT EXISTS affiliate_url TEXT,
+      ADD COLUMN IF NOT EXISTS affiliate_label TEXT
+  `);
+  await ensureImportRunsTable();
+}
+
+runMigrations()
+  .then(() => app.listen(port, () => console.log(`asportmap.com server running on port ${port}`)))
+  .catch((err) => { console.error("Migration failed:", err.message); process.exit(1); });
