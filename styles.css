@@ -192,6 +192,10 @@ main {
 }
 
 @media (max-width: 700px) {
+  .leaflet-control-zoom {
+    display: none;
+  }
+
   .topbar {
     height: auto;
     flex-direction: column;
