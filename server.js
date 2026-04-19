@@ -243,10 +243,16 @@ app.get("/api/admin/venues", requireAdminAuth, async (_req, res) => {
         COALESCE(vl.lat, g.lat) AS lat,
         COALESCE(vl.lng, g.lng) AS lng,
         COALESCE(vl.source, 'auto') AS source,
-        COUNT(g.id)::int AS match_count
-      FROM games g
+        counts.match_count
+      FROM (
+        SELECT DISTINCT ON (venue, country) venue, city, country, lat, lng
+        FROM games
+        ORDER BY venue, country
+      ) g
       LEFT JOIN venue_locations vl ON vl.venue_key = lower(g.venue) || '_' || lower(g.country)
-      GROUP BY g.venue, g.city, g.country, vl.lat, vl.lng, vl.source
+      LEFT JOIN (
+        SELECT venue, country, COUNT(*)::int AS match_count FROM games GROUP BY venue, country
+      ) counts ON counts.venue = g.venue AND counts.country = g.country
       ORDER BY g.venue ASC
     `);
     res.json({ venues: rows });

@@ -270,7 +270,12 @@
 
       async function loadVenues() {
         const response = await fetch("/api/admin/venues", { credentials: "include" });
-        if (!response.ok) return;
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          document.getElementById("venuesBody").innerHTML =
+            `<tr><td colspan="7" class="error">Fel: ${err.details || err.error || response.status}</td></tr>`;
+          return;
+        }
         const data = await response.json();
         allVenues = data.venues || [];
         renderVenues(allVenues);
