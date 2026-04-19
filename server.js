@@ -175,7 +175,7 @@ app.get("/api/admin/stats", requireAdminAuth, async (_req, res) => {
   try {
     await ensureImportRunsTable();
 
-    const [gameCounts, latestImport, failedImports] = await Promise.all([
+    const [gameCounts, latestImport, failedImports, competitions] = await Promise.all([
       pool.query(
         `
         SELECT
@@ -201,13 +201,21 @@ app.get("/api/admin/stats", requireAdminAuth, async (_req, res) => {
         ORDER BY started_at DESC
         LIMIT 10
       `
+      ),
+      pool.query(
+        `SELECT competition, COUNT(*)::int AS match_count
+         FROM games
+         WHERE kickoff >= NOW()
+         GROUP BY competition
+         ORDER BY match_count DESC`
       )
     ]);
 
     res.json({
       counts: gameCounts.rows[0] || { total_games: 0, upcoming_games: 0, last_24h_games: 0 },
       latestImport: latestImport.rows[0] || null,
-      failedImports: failedImports.rows
+      failedImports: failedImports.rows,
+      competitions: competitions.rows
     });
   } catch (error) {
     console.error("Error reading admin stats", error);

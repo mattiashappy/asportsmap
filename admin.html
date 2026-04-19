@@ -143,6 +143,14 @@
         </div>
 
         <div class="card">
+          <h2>Importerade ligor</h2>
+          <table>
+            <thead><tr><th>Liga</th><th>Kommande matcher</th></tr></thead>
+            <tbody id="competitionsBody"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
           <h2>Senaste import</h2>
           <p id="latestImport" class="muted">-</p>
         </div>
@@ -216,6 +224,11 @@
         document.getElementById("totalGames").textContent = data.counts.total_games;
         document.getElementById("upcomingGames").textContent = data.counts.upcoming_games;
         document.getElementById("last24hGames").textContent = data.counts.last_24h_games;
+
+        const compBody = document.getElementById("competitionsBody");
+        compBody.innerHTML = (data.competitions || []).length
+          ? data.competitions.map((c) => `<tr><td>${c.competition}</td><td>${c.match_count}</td></tr>`).join("")
+          : '<tr><td colspan="2" class="muted">Inga ligor hittades.</td></tr>';
 
         const latestImport = data.latestImport;
         latestImportEl.textContent = latestImport
