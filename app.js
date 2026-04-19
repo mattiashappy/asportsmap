@@ -154,9 +154,9 @@ function showGame(game) {
   if (game.affiliateUrl) {
     elements.affiliateBtn.href = game.affiliateUrl;
     elements.affiliateBtn.textContent = game.affiliateLabel || "Buy tickets";
-    elements.affiliateBtn.hidden = false;
+    elements.affiliateBtn.style.display = "inline-block";
   } else {
-    elements.affiliateBtn.hidden = true;
+    elements.affiliateBtn.style.display = "none";
   }
 
   if (game.flagUrl) {
