@@ -118,25 +118,25 @@ main {
 
 .close-btn {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 6px;
+  right: 6px;
   background: none;
   border: none;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1;
   color: #94a3b8;
   cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 8px;
+  z-index: 10;
+  touch-action: manipulation;
 }
 
 .close-btn:hover {
   color: var(--text);
-  background: #f1f5f9;
 }
 
 .game-card h2 {
-  margin: 0 0 8px;
+  margin: 0 28px 8px 0;
 }
 
 .matchup {
