@@ -22,19 +22,18 @@
       </div>
     </header>
 
-    <section class="controls">
-      <div class="date-card">
-        <div class="range-labels">
-          <strong id="fromDate">--</strong>
-          <strong id="toDate">--</strong>
-        </div>
-        <input id="dateRange" type="range" min="0" max="30" value="30" />
-        <small>Show games in the next <span id="rangeDays">30</span> days</small>
-      </div>
-    </section>
-
     <main>
       <div id="map"></div>
+      <section class="controls">
+        <div class="date-card">
+          <div class="range-labels">
+            <strong id="fromDate">--</strong>
+            <strong id="toDate">--</strong>
+          </div>
+          <input id="dateRange" type="range" min="0" max="30" value="30" />
+          <small>Show games in the next <span id="rangeDays">30</span> days</small>
+        </div>
+      </section>
       <aside id="gameCard" class="game-card hidden">
         <h2 id="stadiumName"></h2>
         <div class="matchup">
