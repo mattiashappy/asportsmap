@@ -35,6 +35,7 @@ const elements = {
   prevGameBtn: document.getElementById("prevGameBtn"),
   nextGameBtn: document.getElementById("nextGameBtn"),
   affiliateBtn: document.getElementById("affiliateBtn"),
+  sponsoredBadge: document.getElementById("sponsoredBadge"),
   closeCardBtn: document.getElementById("closeCardBtn")
 };
 
@@ -152,6 +153,8 @@ function showGame(game) {
   elements.gameTime.textContent = formatDate(game.kickoff);
   updateNavArrows();
 
+  elements.sponsoredBadge.style.display = game.sponsored ? "inline-block" : "none";
+
   if (game.affiliateUrl) {
     elements.affiliateBtn.href = game.affiliateUrl;
     elements.affiliateBtn.textContent = game.affiliateLabel || "Buy tickets";
@@ -172,7 +175,9 @@ function renderMarkers() {
   clearMarkers();
 
   state.filteredGames.forEach((game) => {
-    const icon = L.divIcon({ className: game.sponsored ? "marker-pin marker-sponsored" : "marker-pin" });
+    const icon = game.sponsored
+      ? L.divIcon({ className: "", html: '<div class="marker-star">★</div>' })
+      : L.divIcon({ className: "marker-pin" });
     const marker = L.marker([game.lat, game.lng], { icon }).addTo(map);
     marker.on("click", () => showGame(game));
     state.markers.push(marker);
