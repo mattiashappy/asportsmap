@@ -64,7 +64,8 @@ function normalizeGame(raw) {
     awayTeam: raw.awayTeam,
     flagUrl: raw.flagUrl || "",
     affiliateUrl: raw.affiliateUrl || "",
-    affiliateLabel: raw.affiliateLabel || ""
+    affiliateLabel: raw.affiliateLabel || "",
+    sponsored: !!raw.sponsored
   };
 }
 
@@ -171,7 +172,7 @@ function renderMarkers() {
   clearMarkers();
 
   state.filteredGames.forEach((game) => {
-    const icon = L.divIcon({ className: "marker-pin" });
+    const icon = L.divIcon({ className: game.sponsored ? "marker-pin marker-sponsored" : "marker-pin" });
     const marker = L.marker([game.lat, game.lng], { icon }).addTo(map);
     marker.on("click", () => showGame(game));
     state.markers.push(marker);

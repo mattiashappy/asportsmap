@@ -170,6 +170,23 @@
         </div>
 
         <div class="card">
+          <h2>⭐ Sponsrade matcher</h2>
+          <p class="muted">Markerade matcher visas med en guldig plupp på kartan.</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Sponsrad</th>
+                <th>Match</th>
+                <th>Arena</th>
+                <th>Liga</th>
+                <th>Datum</th>
+              </tr>
+            </thead>
+            <tbody id="sponsoredBody"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
           <h2>Arenor &amp; koordinater</h2>
           <p class="muted">Rätta till lat/lng för arenor som hamnat fel på kartan. Ändringarna sparas direkt i databasen.</p>
           <input id="venueSearch" type="search" placeholder="Filtrera arena..." />
@@ -275,11 +292,47 @@
 
         try {
           await loadStats();
+          await loadSponsored();
           await loadVenues();
         } catch (error) {
           loginError.textContent = "Inloggad men kunde inte läsa adminstatistik. Kör db/schema.sql och försök igen.";
         }
       });
+
+      async function loadSponsored() {
+        const res = await fetch("/api/admin/sponsored", { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const tbody = document.getElementById("sponsoredBody");
+        tbody.innerHTML = "";
+        if (!data.games.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="muted">Inga kommande matcher.</td></tr>';
+          return;
+        }
+        for (const g of data.games) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td style="text-align:center">
+              <input type="checkbox" ${g.sponsored ? "checked" : ""} data-id="${g.id}" class="sponsored-check" />
+            </td>
+            <td>${g.homeTeam} vs ${g.awayTeam}</td>
+            <td>${g.venue}</td>
+            <td>${g.competition}</td>
+            <td>${formatDate(g.kickoff)}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+        tbody.querySelectorAll(".sponsored-check").forEach((cb) => {
+          cb.addEventListener("change", async () => {
+            await fetch(`/api/admin/sponsored/${encodeURIComponent(cb.dataset.id)}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ sponsored: cb.checked })
+            });
+          });
+        });
+      }
 
       let allVenues = [];
 
@@ -365,13 +418,13 @@
         renderVenues(filtered);
       });
 
-      refreshBtn.addEventListener("click", () => { loadStats(); loadVenues(); });
+      refreshBtn.addEventListener("click", () => { loadStats(); loadSponsored(); loadVenues(); });
       logoutBtn.addEventListener("click", async () => {
         await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
         setDashboardVisible(false);
       });
 
-      loadStats().then(() => loadVenues()).catch(() => {
+      loadStats().then(() => { loadSponsored(); loadVenues(); }).catch(() => {
         setDashboardVisible(false);
         latestImportEl.textContent = "Kunde inte läsa adminstatistik just nu.";
       });

@@ -124,6 +124,7 @@ app.get("/api/games", async (_req, res) => {
       g.home_team AS "homeTeam",
       g.away_team AS "awayTeam",
       g.flag_url AS "flagUrl",
+      g.sponsored,
       vl.affiliate_url AS "affiliateUrl",
       vl.affiliate_label AS "affiliateLabel"
     FROM games g
@@ -318,6 +319,34 @@ app.put("/api/admin/venues/:venueKey", requireAdminAuth, async (req, res) => {
   }
 });
 
+app.get("/api/admin/sponsored", requireAdminAuth, async (_req, res) => {
+  if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, competition, venue, city, country, home_team AS "homeTeam",
+             away_team AS "awayTeam", kickoff, sponsored
+      FROM games
+      WHERE kickoff >= NOW()
+      ORDER BY sponsored DESC, kickoff ASC
+      LIMIT 200
+    `);
+    res.json({ games: rows });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to load games", details: error.message });
+  }
+});
+
+app.put("/api/admin/sponsored/:id", requireAdminAuth, async (req, res) => {
+  if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
+  const { sponsored } = req.body || {};
+  try {
+    await pool.query(`UPDATE games SET sponsored = $1 WHERE id = $2`, [!!sponsored, req.params.id]);
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update", details: error.message });
+  }
+});
+
 app.get("/admin", (_req, res) => {
   res.sendFile(path.join(__dirname, "admin.html"));
 });
@@ -343,6 +372,10 @@ async function runMigrations() {
     ALTER TABLE venue_locations
       ADD COLUMN IF NOT EXISTS affiliate_url TEXT,
       ADD COLUMN IF NOT EXISTS affiliate_label TEXT
+  `);
+  await pool.query(`
+    ALTER TABLE games
+      ADD COLUMN IF NOT EXISTS sponsored BOOLEAN NOT NULL DEFAULT false
   `);
   await ensureImportRunsTable();
 }

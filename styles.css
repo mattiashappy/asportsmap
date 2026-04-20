@@ -218,6 +218,20 @@ main {
   box-shadow: 0 0 0 2px var(--primary-dark);
 }
 
+.marker-sponsored {
+  width: 22px;
+  height: 22px;
+  background: #FFD700;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #B8860B, 0 0 10px 3px rgba(255, 215, 0, 0.7);
+  animation: pulse-gold 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 2px #B8860B, 0 0 10px 3px rgba(255, 215, 0, 0.7); }
+  50%       { box-shadow: 0 0 0 2px #B8860B, 0 0 18px 6px rgba(255, 215, 0, 0.9); }
+}
+
 @media (max-width: 700px) {
   .leaflet-control-zoom {
     display: none;
