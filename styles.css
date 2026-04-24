@@ -234,16 +234,14 @@ main {
 .marker-star {
   font-size: 26px;
   line-height: 1;
-  color: #FFD700;
-  text-shadow: 0 0 4px #B8860B, 0 0 10px rgba(255, 215, 0, 0.8);
-  animation: pulse-gold 1.8s ease-in-out infinite;
+  animation: pulse-ball 1.8s ease-in-out infinite;
   user-select: none;
   cursor: pointer;
 }
 
-@keyframes pulse-gold {
-  0%, 100% { text-shadow: 0 0 4px #B8860B, 0 0 10px rgba(255, 215, 0, 0.8); }
-  50%       { text-shadow: 0 0 8px #B8860B, 0 0 20px rgba(255, 215, 0, 1); }
+@keyframes pulse-ball {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.25); }
 }
 
 @media (max-width: 700px) {

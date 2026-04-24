@@ -177,7 +177,7 @@ function renderMarkers() {
   const sorted = [...state.filteredGames].sort((a, b) => (a.sponsored ? 1 : 0) - (b.sponsored ? 1 : 0));
   sorted.forEach((game) => {
     const icon = game.sponsored
-      ? L.divIcon({ className: "", html: '<div class="marker-star">★</div>' })
+      ? L.divIcon({ className: "", html: '<div class="marker-star">⚽</div>' })
       : L.divIcon({ className: "marker-pin" });
     const marker = L.marker([game.lat, game.lng], { icon, zIndexOffset: game.sponsored ? 1000 : 0 }).addTo(map);
     marker.on("click", () => showGame(game));
