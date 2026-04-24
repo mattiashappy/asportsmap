@@ -11,7 +11,14 @@ const TOKEN_ENV_CANDIDATES = [
 ];
 
 // Här listar vi de ID:n vi vill ha som standard om inget skrivs i terminalen
-const DEFAULT_LIGUE_IDS = "2013,2016,2021,2014,2002,2019,2015,2001,2003,2017,2152,2018,2000";
+const DEFAULT_LIGUE_IDS = [
+  // TIER_ONE
+  "2021","2016","2002","2019","2014","2015","2003","2017","2013","2001","2018","2000",
+  // TIER_TWO – ligor
+  "2024","2008","2009","2030","2142","2004","2121","2119","2137","2084","2077","2145",
+  // TIER_TWO – cuper
+  "2055","2011","2174","2146","2186","2178","2167"
+].join(",");
 
 const COMPETITIONS = (process.argv[2] || process.env.FOOTBALL_COMPETITIONS || DEFAULT_LIGUE_IDS)
   .split(",")
