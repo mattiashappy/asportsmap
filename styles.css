@@ -27,7 +27,7 @@ body {
 }
 
 .topbar {
-  height: 74px;
+  height: 84px;
   flex-shrink: 0;
   background: var(--primary);
   color: #fff;
@@ -40,9 +40,16 @@ body {
 
 .topbar-right {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.topbar-row {
+  display: flex;
   align-items: center;
   gap: 14px;
-  margin-left: auto;
 }
 
 .brand h1 {
