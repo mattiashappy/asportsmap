@@ -6,9 +6,18 @@ const map = L.map("map", {
   maxBoundsViscosity: 1.0
 }).setView([25, 5], 2);
 L.control.zoom({ position: "topright" }).addTo(map);
-new ResizeObserver(() => map.invalidateSize()).observe(document.getElementById("map"));
-// Force Leaflet to recalculate after CSS layout has fully settled
-requestAnimationFrame(() => requestAnimationFrame(() => map.invalidateSize()));
+// Explicitly size the map container to fill exactly the space below the header.
+// This is the most reliable approach across desktop and mobile browsers.
+function fitMapToViewport() {
+  const topbar = document.querySelector(".topbar");
+  const main = document.getElementById("map").parentElement;
+  const remaining = window.innerHeight - topbar.getBoundingClientRect().height;
+  main.style.height = remaining + "px";
+  map.invalidateSize();
+}
+fitMapToViewport();
+window.addEventListener("resize", fitMapToViewport);
+new ResizeObserver(fitMapToViewport).observe(document.querySelector(".topbar"));
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: "© OpenStreetMap contributors"
 }).addTo(map);
