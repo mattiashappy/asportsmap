@@ -99,6 +99,67 @@
       .badge-manual { color: #86efac; }
       .badge-auto { color: #94a3b8; }
 
+      /* Affiliate link manager */
+      .links-toggle-btn {
+        margin-top: 0;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.8rem;
+        background: #1e293b;
+        border: 1px solid #475569;
+        white-space: nowrap;
+      }
+      .links-detail-row td {
+        padding: 0;
+        border-bottom: 2px solid #8cac7f;
+      }
+      .links-manager {
+        padding: 12px 16px;
+        background: #0b1220;
+      }
+      .link-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 0;
+        border-bottom: 1px solid #1e293b;
+        font-size: 0.875rem;
+      }
+      .link-item:last-child { border-bottom: none; }
+      .link-item .link-label { font-weight: 600; min-width: 120px; }
+      .link-item .link-url { color: #94a3b8; flex: 1; word-break: break-all; }
+      .link-delete {
+        margin-top: 0;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.8rem;
+        background: #7f1d1d;
+        flex-shrink: 0;
+      }
+      .link-delete:hover { background: #991b1b; }
+      .link-add-form {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .link-add-form input {
+        flex: 1;
+        min-width: 140px;
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+      }
+      .link-add-btn {
+        margin-top: 0;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
+        white-space: nowrap;
+      }
+      .link-add-status {
+        font-size: 0.8rem;
+        color: #94a3b8;
+      }
+      .no-links-msg { color: #94a3b8; font-size: 0.85rem; margin: 0 0 8px; font-style: italic; }
+
       /* Pagination */
       .pagination {
         display: flex;
@@ -261,8 +322,7 @@
                 <th>Matcher</th>
                 <th>Lat</th>
                 <th>Lng</th>
-                <th>Länktext</th>
-                <th>Affiliate URL</th>
+                <th>Affiliate-länkar</th>
                 <th></th>
               </tr>
             </thead>
@@ -522,6 +582,84 @@
         return Number(document.getElementById("venuePerPage").value);
       }
 
+      function renderLinksManager(container, venue) {
+        container.innerHTML = "";
+
+        // Existing links list
+        if (!venue.affiliateLinks || !venue.affiliateLinks.length) {
+          const msg = document.createElement("p");
+          msg.className = "no-links-msg";
+          msg.textContent = "Inga länkar tillagda ännu.";
+          container.appendChild(msg);
+        } else {
+          for (const link of venue.affiliateLinks) {
+            const item = document.createElement("div");
+            item.className = "link-item";
+            item.innerHTML = `
+              <span class="link-label">${link.label}</span>
+              <span class="link-url muted">${link.url}</span>
+              <button class="link-delete">✕ Ta bort</button>
+            `;
+            item.querySelector(".link-delete").addEventListener("click", async () => {
+              await fetch(`/api/admin/venues/${encodeURIComponent(venue.venue_key)}/links/${link.id}`, {
+                method: "DELETE", credentials: "include"
+              });
+              venue.affiliateLinks = venue.affiliateLinks.filter((l) => l.id !== link.id);
+              renderLinksManager(container, venue);
+              updateLinksBtn(venue);
+            });
+            container.appendChild(item);
+          }
+        }
+
+        // Add-link form
+        const form = document.createElement("div");
+        form.className = "link-add-form";
+        form.innerHTML = `
+          <input type="text" class="link-label-input" placeholder="Länktext (t.ex. Köp biljetter)" />
+          <input type="url" class="link-url-input" placeholder="https://..." />
+          <button class="link-add-btn">+ Lägg till</button>
+          <span class="link-add-status"></span>
+        `;
+        form.querySelector(".link-add-btn").addEventListener("click", async () => {
+          const label = form.querySelector(".link-label-input").value.trim();
+          const url = form.querySelector(".link-url-input").value.trim();
+          const statusEl = form.querySelector(".link-add-status");
+          if (!label || !url) { statusEl.textContent = "Fyll i länktext och URL."; return; }
+          statusEl.textContent = "Sparar...";
+          try {
+            const res = await fetch(`/api/admin/venues/${encodeURIComponent(venue.venue_key)}/links`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ label, url })
+            });
+            if (res.ok) {
+              const data = await res.json();
+              venue.affiliateLinks = venue.affiliateLinks || [];
+              venue.affiliateLinks.push(data.link);
+              form.querySelector(".link-label-input").value = "";
+              form.querySelector(".link-url-input").value = "";
+              statusEl.textContent = "";
+              renderLinksManager(container, venue);
+              updateLinksBtn(venue);
+            } else {
+              statusEl.textContent = "Fel vid sparande.";
+            }
+          } catch (_) {
+            statusEl.textContent = "Nätverksfel.";
+          }
+        });
+        container.appendChild(form);
+      }
+
+      function updateLinksBtn(venue) {
+        const btn = document.querySelector(`.links-toggle-btn[data-venue-key="${venue.venue_key.replace(/"/g, '\\"')}"]`);
+        if (!btn) return;
+        const count = (venue.affiliateLinks || []).length;
+        btn.textContent = count > 0 ? `⊕ ${count} länk${count !== 1 ? "ar" : ""}` : "⊕ Lägg till";
+      }
+
       function renderVenues() {
         const perPage = getVenuesPerPage();
         const start = (venuesPage - 1) * perPage;
@@ -533,7 +671,7 @@
           `Visar ${filteredVenues.length} arenor`;
 
         if (!filteredVenues.length) {
-          tbody.innerHTML = '<tr><td colspan="9" class="muted">Inga arenor hittades.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" class="muted">Inga arenor hittades.</td></tr>';
           buildPagination("venuesPagination", 0, 1, perPage, () => {});
           return;
         }
@@ -542,6 +680,10 @@
           const sourceLabel = v.source === "manual"
             ? '<span class="badge-manual">manuell</span>'
             : '<span class="badge-auto">auto</span>';
+          const linkCount = (v.affiliateLinks || []).length;
+          const linkBtnText = linkCount > 0 ? `⊕ ${linkCount} länk${linkCount !== 1 ? "ar" : ""}` : "⊕ Lägg till";
+
+          // Main venue row
           const tr = document.createElement("tr");
           tr.dataset.venueKey = v.venue_key;
           tr.innerHTML = `
@@ -551,45 +693,59 @@
             <td>${v.match_count}</td>
             <td><input class="venue-input lat-input" type="number" step="0.0001" value="${Number(v.lat).toFixed(4)}" /></td>
             <td><input class="venue-input lng-input" type="number" step="0.0001" value="${Number(v.lng).toFixed(4)}" /></td>
-            <td><input class="venue-input affiliate-label-input" type="text" placeholder="Köp biljetter" value="${v.affiliate_label || ""}" /></td>
-            <td><input class="venue-input affiliate-url-input" type="url" placeholder="https://..." value="${v.affiliate_url || ""}" /></td>
+            <td>
+              <button class="links-toggle-btn secondary" data-venue-key="${v.venue_key}">${linkBtnText}</button>
+            </td>
             <td>
               <button class="venue-save" data-key="${v.venue_key}" data-name="${v.venue}" data-country="${v.country}">Spara</button>
               <span class="venue-status"></span>
             </td>
           `;
           tbody.appendChild(tr);
-        }
 
-        tbody.querySelectorAll(".venue-save").forEach((btn) => {
-          btn.addEventListener("click", async () => {
-            const row = btn.closest("tr");
-            const lat = row.querySelector(".lat-input").value;
-            const lng = row.querySelector(".lng-input").value;
-            const affiliate_label = row.querySelector(".affiliate-label-input").value;
-            const affiliate_url = row.querySelector(".affiliate-url-input").value;
-            const statusEl = row.querySelector(".venue-status");
-            btn.disabled = true;
+          // Hidden detail row for the link manager
+          const detailTr = document.createElement("tr");
+          detailTr.className = "links-detail-row";
+          detailTr.style.display = "none";
+          detailTr.innerHTML = `<td colspan="8"><div class="links-manager"></div></td>`;
+          tbody.appendChild(detailTr);
+
+          // Toggle link manager
+          tr.querySelector(".links-toggle-btn").addEventListener("click", () => {
+            const isHidden = detailTr.style.display === "none";
+            detailTr.style.display = isHidden ? "table-row" : "none";
+            if (isHidden) {
+              renderLinksManager(detailTr.querySelector(".links-manager"), v);
+            }
+          });
+
+          // Save coordinates
+          const saveBtn = tr.querySelector(".venue-save");
+          saveBtn.addEventListener("click", async () => {
+            const lat = tr.querySelector(".lat-input").value;
+            const lng = tr.querySelector(".lng-input").value;
+            const statusEl = tr.querySelector(".venue-status");
+            saveBtn.disabled = true;
             statusEl.textContent = "Sparar...";
             try {
-              const res = await fetch(`/api/admin/venues/${encodeURIComponent(btn.dataset.key)}`, {
+              const res = await fetch(`/api/admin/venues/${encodeURIComponent(saveBtn.dataset.key)}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
-                body: JSON.stringify({ lat, lng, venue_name: btn.dataset.name, country: btn.dataset.country, affiliate_label, affiliate_url })
+                body: JSON.stringify({ lat, lng, venue_name: saveBtn.dataset.name, country: saveBtn.dataset.country })
               });
               statusEl.textContent = res.ok ? "Sparat!" : "Fel vid sparande.";
               if (res.ok) {
-                const v = allVenues.find((x) => x.venue_key === btn.dataset.key);
-                if (v) { v.lat = lat; v.lng = lng; v.source = "manual"; }
+                const venue = allVenues.find((x) => x.venue_key === saveBtn.dataset.key);
+                if (venue) { venue.lat = lat; venue.lng = lng; venue.source = "manual"; }
               }
             } catch (_) {
               statusEl.textContent = "Nätverksfel.";
             }
-            btn.disabled = false;
+            saveBtn.disabled = false;
             setTimeout(() => { statusEl.textContent = ""; }, 3000);
           });
-        });
+        }
 
         buildPagination("venuesPagination", filteredVenues.length, venuesPage, perPage, (p) => {
           venuesPage = p;

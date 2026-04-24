@@ -68,10 +68,7 @@ function applyLanguage() {
 
   // Text content
   document.querySelectorAll("[data-i18n]").forEach((el) => {
-    const key = el.dataset.i18n;
-    // Don't overwrite affiliate button text when a custom label is set
-    if (el.id === "affiliateBtn" && el.dataset.customLabel) return;
-    el.textContent = t(key);
+    el.textContent = t(el.dataset.i18n);
   });
 
   // Placeholders
@@ -127,7 +124,7 @@ const elements = {
   gameTime: document.getElementById("gameTime"),
   prevGameBtn: document.getElementById("prevGameBtn"),
   nextGameBtn: document.getElementById("nextGameBtn"),
-  affiliateBtn: document.getElementById("affiliateBtn"),
+  affiliateLinks: document.getElementById("affiliateLinks"),
   sponsoredBadge: document.getElementById("sponsoredBadge"),
   closeCardBtn: document.getElementById("closeCardBtn")
 };
@@ -158,8 +155,7 @@ function normalizeGame(raw) {
     homeTeam: raw.homeTeam,
     awayTeam: raw.awayTeam,
     flagUrl: raw.flagUrl || "",
-    affiliateUrl: raw.affiliateUrl || "",
-    affiliateLabel: raw.affiliateLabel || "",
+    affiliateLinks: Array.isArray(raw.affiliateLinks) ? raw.affiliateLinks : [],
     sponsored: !!raw.sponsored
   };
 }
@@ -250,15 +246,16 @@ function showGame(game) {
 
   elements.sponsoredBadge.style.display = game.sponsored ? "inline-block" : "none";
 
-  if (game.affiliateUrl) {
-    elements.affiliateBtn.href = game.affiliateUrl;
-    // Use the game's custom label if set, otherwise fall back to translated default
-    const label = game.affiliateLabel || t("buyTickets");
-    elements.affiliateBtn.textContent = label;
-    elements.affiliateBtn.dataset.customLabel = game.affiliateLabel ? "1" : "";
-    elements.affiliateBtn.style.display = "inline-block";
-  } else {
-    elements.affiliateBtn.style.display = "none";
+  // Render affiliate buttons (supports multiple)
+  elements.affiliateLinks.innerHTML = "";
+  for (const link of game.affiliateLinks) {
+    const a = document.createElement("a");
+    a.className = "affiliate-btn";
+    a.href = link.url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = link.label || t("buyTickets");
+    elements.affiliateLinks.appendChild(a);
   }
 
   if (game.flagUrl) {

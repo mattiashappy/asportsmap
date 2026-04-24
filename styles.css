@@ -264,6 +264,12 @@ main {
   cursor: default;
 }
 
+.affiliate-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .affiliate-btn {
   display: inline-block;
   background: var(--primary);

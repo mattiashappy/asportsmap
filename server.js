@@ -69,10 +69,8 @@ function verifySessionToken(token) {
   }
 }
 
-
 async function ensureImportRunsTable() {
   if (!pool) return;
-
   await pool.query(`
     CREATE TABLE IF NOT EXISTS import_runs (
       id BIGSERIAL PRIMARY KEY,
@@ -89,11 +87,7 @@ async function ensureImportRunsTable() {
 function requireAdminAuth(req, res, next) {
   const cookies = readCookies(req);
   const session = verifySessionToken(cookies.admin_session);
-
-  if (!session) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
+  if (!session) return res.status(401).json({ error: "Unauthorized" });
   req.admin = session;
   return next();
 }
@@ -101,6 +95,8 @@ function requireAdminAuth(req, res, next) {
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
+
+// ─── Public: games ───────────────────────────────────────────────────────────
 
 app.get("/api/games", async (_req, res) => {
   if (!pool) {
@@ -121,15 +117,22 @@ app.get("/api/games", async (_req, res) => {
       g.kickoff,
       g.lat,
       g.lng,
-      g.home_team AS "homeTeam",
-      g.away_team AS "awayTeam",
-      g.flag_url AS "flagUrl",
+      g.home_team   AS "homeTeam",
+      g.away_team   AS "awayTeam",
+      g.flag_url    AS "flagUrl",
       g.sponsored,
-      vl.affiliate_url AS "affiliateUrl",
-      vl.affiliate_label AS "affiliateLabel"
+      COALESCE(
+        (
+          SELECT json_agg(
+            json_build_object('id', al.id, 'label', al.label, 'url', al.url)
+            ORDER BY al.sort_order, al.id
+          )
+          FROM venue_affiliate_links al
+          WHERE al.venue_key = lower(trim(g.venue)) || '|' || lower(trim(g.country))
+        ),
+        '[]'::json
+      ) AS "affiliateLinks"
     FROM games g
-    LEFT JOIN venue_locations vl
-      ON vl.venue_key = lower(trim(g.venue)) || '|' || lower(trim(g.country))
     WHERE g.sport = 'football' AND g.kickoff >= NOW()
     ORDER BY g.kickoff ASC
   `;
@@ -139,20 +142,17 @@ app.get("/api/games", async (_req, res) => {
     res.json({ games: rows });
   } catch (error) {
     console.error("Error reading games from Postgres", error);
-    res.status(500).json({
-      error: "Failed to load games from database",
-      details: error.message
-    });
+    res.status(500).json({ error: "Failed to load games from database", details: error.message });
   }
 });
 
+// ─── Admin: auth ─────────────────────────────────────────────────────────────
+
 app.post("/api/admin/login", (req, res) => {
   const { username, password } = req.body || {};
-
   if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
-
   const token = buildSessionToken(username);
   const secure = process.env.NODE_ENV === "production";
   res.setHeader(
@@ -161,7 +161,6 @@ app.post("/api/admin/login", (req, res) => {
       ADMIN_SESSION_TTL_MS / 1000
     )}${secure ? "; Secure" : ""}`
   );
-
   return res.json({ ok: true });
 });
 
@@ -170,50 +169,35 @@ app.post("/api/admin/logout", (_req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Admin: stats ─────────────────────────────────────────────────────────────
+
 app.get("/api/admin/stats", requireAdminAuth, async (_req, res) => {
-  if (!pool) {
-    return res.status(500).json({
-      error: "DATABASE_URL is not set. Configure your Heroku Postgres URL first."
-    });
-  }
+  if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
 
   try {
     await ensureImportRunsTable();
 
     const [gameCounts, latestImport, failedImports, competitions] = await Promise.all([
-      pool.query(
-        `
+      pool.query(`
         SELECT
           COUNT(*)::int AS total_games,
           COUNT(*) FILTER (WHERE kickoff >= NOW())::int AS upcoming_games,
           COUNT(*) FILTER (WHERE kickoff >= NOW() - INTERVAL '24 hours')::int AS last_24h_games
         FROM games
-      `
-      ),
-      pool.query(
-        `
+      `),
+      pool.query(`
         SELECT id, status, started_at, finished_at, competitions, imported_matches, error_message
-        FROM import_runs
-        ORDER BY started_at DESC
-        LIMIT 1
-      `
-      ),
-      pool.query(
-        `
+        FROM import_runs ORDER BY started_at DESC LIMIT 1
+      `),
+      pool.query(`
         SELECT id, started_at, finished_at, competitions, error_message
-        FROM import_runs
-        WHERE status = 'failed'
-        ORDER BY started_at DESC
-        LIMIT 10
-      `
-      ),
-      pool.query(
-        `SELECT competition, COUNT(*)::int AS match_count
-         FROM games
-         WHERE kickoff >= NOW()
-         GROUP BY competition
-         ORDER BY match_count DESC`
-      )
+        FROM import_runs WHERE status = 'failed' ORDER BY started_at DESC LIMIT 10
+      `),
+      pool.query(`
+        SELECT competition, COUNT(*)::int AS match_count
+        FROM games WHERE kickoff >= NOW()
+        GROUP BY competition ORDER BY match_count DESC
+      `)
     ]);
 
     res.json({
@@ -224,12 +208,11 @@ app.get("/api/admin/stats", requireAdminAuth, async (_req, res) => {
     });
   } catch (error) {
     console.error("Error reading admin stats", error);
-    res.status(500).json({
-      error: "Failed to load admin stats",
-      details: error.message
-    });
+    res.status(500).json({ error: "Failed to load admin stats", details: error.message });
   }
 });
+
+// ─── Admin: venues ────────────────────────────────────────────────────────────
 
 app.get("/api/admin/venues", requireAdminAuth, async (_req, res) => {
   if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
@@ -262,19 +245,30 @@ app.get("/api/admin/venues", requireAdminAuth, async (_req, res) => {
         COALESCE(vl.lng, g.lng) AS lng,
         COALESCE(vl.source, 'auto') AS source,
         counts.match_count,
-        vl.affiliate_url,
-        vl.affiliate_label
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object('id', al.id, 'label', al.label, 'url', al.url)
+              ORDER BY al.sort_order, al.id
+            )
+            FROM venue_affiliate_links al
+            WHERE al.venue_key = lower(trim(g.venue)) || '|' || lower(trim(g.country))
+          ),
+          '[]'::json
+        ) AS "affiliateLinks"
       FROM (
         SELECT DISTINCT ON (venue, country) venue, city, country, lat, lng
-        FROM games
-        ORDER BY venue, country
+        FROM games ORDER BY venue, country
       ) g
-      LEFT JOIN venue_locations vl ON vl.venue_key = lower(trim(g.venue)) || '|' || lower(trim(g.country))
+      LEFT JOIN venue_locations vl
+        ON vl.venue_key = lower(trim(g.venue)) || '|' || lower(trim(g.country))
       LEFT JOIN (
-        SELECT venue, country, COUNT(*)::int AS match_count FROM games GROUP BY venue, country
+        SELECT venue, country, COUNT(*)::int AS match_count
+        FROM games GROUP BY venue, country
       ) counts ON counts.venue = g.venue AND counts.country = g.country
       ORDER BY g.venue ASC
     `);
+
     res.json({ venues: rows });
   } catch (error) {
     console.error("Error reading venues", error);
@@ -286,7 +280,7 @@ app.put("/api/admin/venues/:venueKey", requireAdminAuth, async (req, res) => {
   if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
 
   const { venueKey } = req.params;
-  const { lat, lng, venue_name, country, affiliate_url, affiliate_label } = req.body || {};
+  const { lat, lng, venue_name, country } = req.body || {};
   const latNum = Number(lat);
   const lngNum = Number(lng);
 
@@ -296,16 +290,14 @@ app.put("/api/admin/venues/:venueKey", requireAdminAuth, async (req, res) => {
 
   try {
     await pool.query(`
-      INSERT INTO venue_locations (venue_key, venue_name, country, lat, lng, source, affiliate_url, affiliate_label, updated_at)
-      VALUES ($1, $2, $3, $4, $5, 'manual', $6, $7, NOW())
+      INSERT INTO venue_locations (venue_key, venue_name, country, lat, lng, source, updated_at)
+      VALUES ($1, $2, $3, $4, $5, 'manual', NOW())
       ON CONFLICT (venue_key) DO UPDATE SET
         lat = EXCLUDED.lat,
         lng = EXCLUDED.lng,
         source = 'manual',
-        affiliate_url = EXCLUDED.affiliate_url,
-        affiliate_label = EXCLUDED.affiliate_label,
         updated_at = NOW()
-    `, [venueKey, venue_name || venueKey, country || "", latNum, lngNum, affiliate_url || null, affiliate_label || null]);
+    `, [venueKey, venue_name || venueKey, country || "", latNum, lngNum]);
 
     await pool.query(
       `UPDATE games SET lat = $1, lng = $2 WHERE lower(trim(venue)) || '|' || lower(trim(country)) = $3`,
@@ -318,6 +310,71 @@ app.put("/api/admin/venues/:venueKey", requireAdminAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to update venue", details: error.message });
   }
 });
+
+// ─── Admin: affiliate links ───────────────────────────────────────────────────
+
+// Ensure venue_locations row exists before we can add links to it
+async function ensureVenueRow(venueKey) {
+  await pool.query(`
+    INSERT INTO venue_locations (venue_key, venue_name, country, lat, lng, source)
+    SELECT
+      lower(trim(venue)) || '|' || lower(trim(country)),
+      venue, country, lat, lng, 'auto'
+    FROM games
+    WHERE lower(trim(venue)) || '|' || lower(trim(country)) = $1
+    LIMIT 1
+    ON CONFLICT (venue_key) DO NOTHING
+  `, [venueKey]);
+}
+
+app.get("/api/admin/venues/:venueKey/links", requireAdminAuth, async (req, res) => {
+  if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, label, url, sort_order FROM venue_affiliate_links
+       WHERE venue_key = $1 ORDER BY sort_order, id`,
+      [req.params.venueKey]
+    );
+    res.json({ links: rows });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to load links", details: error.message });
+  }
+});
+
+app.post("/api/admin/venues/:venueKey/links", requireAdminAuth, async (req, res) => {
+  if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
+  const { label, url } = req.body || {};
+  if (!label || !url) return res.status(400).json({ error: "label and url are required" });
+
+  try {
+    await ensureVenueRow(req.params.venueKey);
+    const { rows } = await pool.query(
+      `INSERT INTO venue_affiliate_links (venue_key, label, url)
+       VALUES ($1, $2, $3)
+       RETURNING id, label, url, sort_order`,
+      [req.params.venueKey, label, url]
+    );
+    res.json({ ok: true, link: rows[0] });
+  } catch (error) {
+    console.error("Error adding link", error);
+    res.status(500).json({ error: "Failed to add link", details: error.message });
+  }
+});
+
+app.delete("/api/admin/venues/:venueKey/links/:id", requireAdminAuth, async (req, res) => {
+  if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
+  try {
+    await pool.query(
+      `DELETE FROM venue_affiliate_links WHERE id = $1 AND venue_key = $2`,
+      [req.params.id, req.params.venueKey]
+    );
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete link", details: error.message });
+  }
+});
+
+// ─── Admin: sponsored ────────────────────────────────────────────────────────
 
 app.get("/api/admin/sponsored", requireAdminAuth, async (_req, res) => {
   if (!pool) return res.status(500).json({ error: "DATABASE_URL is not set." });
@@ -347,6 +404,8 @@ app.put("/api/admin/sponsored/:id", requireAdminAuth, async (req, res) => {
   }
 });
 
+// ─── Static / catch-all ──────────────────────────────────────────────────────
+
 app.get("/admin", (_req, res) => {
   res.sendFile(path.join(__dirname, "admin.html"));
 });
@@ -354,6 +413,8 @@ app.get("/admin", (_req, res) => {
 app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
+
+// ─── Migrations ──────────────────────────────────────────────────────────────
 
 async function runMigrations() {
   if (!pool) return;
@@ -376,6 +437,27 @@ async function runMigrations() {
   await pool.query(`
     ALTER TABLE games
       ADD COLUMN IF NOT EXISTS sponsored BOOLEAN NOT NULL DEFAULT false
+  `);
+  // New table for multiple affiliate links per venue
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS venue_affiliate_links (
+      id          BIGSERIAL PRIMARY KEY,
+      venue_key   TEXT NOT NULL,
+      label       TEXT NOT NULL,
+      url         TEXT NOT NULL,
+      sort_order  INTEGER NOT NULL DEFAULT 0,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  // Migrate any existing single affiliate links into the new table
+  await pool.query(`
+    INSERT INTO venue_affiliate_links (venue_key, label, url)
+    SELECT venue_key, COALESCE(NULLIF(affiliate_label,''), 'Buy tickets'), affiliate_url
+    FROM venue_locations
+    WHERE affiliate_url IS NOT NULL AND affiliate_url <> ''
+      AND NOT EXISTS (
+        SELECT 1 FROM venue_affiliate_links al WHERE al.venue_key = venue_locations.venue_key
+      )
   `);
   await ensureImportRunsTable();
 }
