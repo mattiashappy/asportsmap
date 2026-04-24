@@ -99,6 +99,41 @@
       .badge-manual { color: #86efac; }
       .badge-auto { color: #94a3b8; }
 
+      /* Pagination */
+      .pagination {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .pagination button {
+        margin-top: 0;
+        padding: 0.3rem 0.7rem;
+        font-size: 0.85rem;
+        background: #1e293b;
+        border: 1px solid #475569;
+      }
+      .pagination button:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+      .pagination button.active {
+        background: #8cac7f;
+        border-color: #8cac7f;
+      }
+      .pagination-info {
+        color: #94a3b8;
+        font-size: 0.85rem;
+      }
+      .per-page-select {
+        padding: 0.3rem 0.5rem;
+        border-radius: 8px;
+        border: 1px solid #475569;
+        background: #0b1220;
+        color: #e2e8f0;
+        font-size: 0.85rem;
+      }
     </style>
   </head>
   <body>
@@ -169,11 +204,19 @@
         <div class="card">
           <h2>⭐ Sponsrade matcher</h2>
           <p class="muted">Markerade matcher visas med en guldig plupp på kartan.</p>
-          <div style="display:flex; gap:8px; margin-bottom:0.75rem; flex-wrap:wrap;">
+          <div style="display:flex; gap:8px; margin-bottom:0.75rem; flex-wrap:wrap; align-items:center;">
             <input id="sponsoredSearch" type="search" placeholder="Sök lag eller arena..." style="flex:1; min-width:180px;" />
             <select id="sponsoredLeague" style="padding:0.6rem; border-radius:8px; border:1px solid #475569; background:#0b1220; color:#e2e8f0; min-width:180px;">
               <option value="">Alla ligor</option>
             </select>
+            <label style="margin:0; display:flex; align-items:center; gap:6px; white-space:nowrap;">
+              Rader:
+              <select id="sponsoredPerPage" class="per-page-select">
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
           </div>
           <p id="sponsoredCount" class="muted" style="margin:0 0 0.5rem;"></p>
           <table>
@@ -188,16 +231,25 @@
             </thead>
             <tbody id="sponsoredBody"></tbody>
           </table>
+          <div class="pagination" id="sponsoredPagination"></div>
         </div>
 
         <div class="card">
           <h2>Arenor &amp; koordinater</h2>
           <p class="muted">Rätta till lat/lng för arenor som hamnat fel på kartan. Ändringarna sparas direkt i databasen.</p>
-          <div style="display:flex; gap:8px; margin-bottom:0.75rem; flex-wrap:wrap;">
+          <div style="display:flex; gap:8px; margin-bottom:0.75rem; flex-wrap:wrap; align-items:center;">
             <input id="venueSearch" type="search" placeholder="Sök arena, stad..." style="flex:1; min-width:180px;" />
             <select id="venueCountry" style="padding:0.6rem; border-radius:8px; border:1px solid #475569; background:#0b1220; color:#e2e8f0; min-width:160px;">
               <option value="">Alla länder</option>
             </select>
+            <label style="margin:0; display:flex; align-items:center; gap:6px; white-space:nowrap;">
+              Rader:
+              <select id="venuePerPage" class="per-page-select">
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
           </div>
           <p id="venueCount" class="muted" style="margin:0 0 0.5rem;"></p>
           <table>
@@ -216,6 +268,7 @@
             </thead>
             <tbody id="venuesBody"></tbody>
           </table>
+          <div class="pagination" id="venuesPagination"></div>
         </div>
       </section>
     </main>
@@ -238,6 +291,63 @@
         loginCard.hidden = visible;
         dashboard.hidden = !visible;
       }
+
+      // ─── Generic pagination helper ───────────────────────────────────────────
+
+      function buildPagination(containerId, totalItems, currentPage, perPage, onPageChange) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = "";
+        const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
+        if (totalPages <= 1) return;
+
+        const prev = document.createElement("button");
+        prev.textContent = "‹ Föregående";
+        prev.disabled = currentPage === 1;
+        prev.addEventListener("click", () => onPageChange(currentPage - 1));
+        container.appendChild(prev);
+
+        // Show up to 7 page buttons with ellipsis
+        const pages = [];
+        if (totalPages <= 7) {
+          for (let i = 1; i <= totalPages; i++) pages.push(i);
+        } else {
+          pages.push(1);
+          if (currentPage > 3) pages.push("…");
+          for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+          if (currentPage < totalPages - 2) pages.push("…");
+          pages.push(totalPages);
+        }
+
+        for (const p of pages) {
+          if (p === "…") {
+            const span = document.createElement("span");
+            span.textContent = "…";
+            span.className = "pagination-info";
+            container.appendChild(span);
+          } else {
+            const btn = document.createElement("button");
+            btn.textContent = p;
+            if (p === currentPage) btn.classList.add("active");
+            btn.addEventListener("click", () => onPageChange(p));
+            container.appendChild(btn);
+          }
+        }
+
+        const next = document.createElement("button");
+        next.textContent = "Nästa ›";
+        next.disabled = currentPage === totalPages;
+        next.addEventListener("click", () => onPageChange(currentPage + 1));
+        container.appendChild(next);
+
+        const info = document.createElement("span");
+        info.className = "pagination-info";
+        const from = (currentPage - 1) * perPage + 1;
+        const to = Math.min(currentPage * perPage, totalItems);
+        info.textContent = `${from}–${to} av ${totalItems}`;
+        container.appendChild(info);
+      }
+
+      // ─── Stats ───────────────────────────────────────────────────────────────
 
       async function loadStats() {
         const response = await fetch("/api/admin/stats", { credentials: "include" });
@@ -309,17 +419,33 @@
         }
       });
 
-      let allSponsored = [];
+      // ─── Sponsored matches ────────────────────────────────────────────────────
 
-      function renderSponsored(games) {
+      let allSponsored = [];
+      let filteredSponsored = [];
+      let sponsoredPage = 1;
+
+      function getSponsoredPerPage() {
+        return Number(document.getElementById("sponsoredPerPage").value);
+      }
+
+      function renderSponsored() {
+        const perPage = getSponsoredPerPage();
+        const start = (sponsoredPage - 1) * perPage;
+        const page = filteredSponsored.slice(start, start + perPage);
+
         const tbody = document.getElementById("sponsoredBody");
         tbody.innerHTML = "";
-        document.getElementById("sponsoredCount").textContent = `Visar ${games.length} matcher`;
-        if (!games.length) {
+        document.getElementById("sponsoredCount").textContent =
+          `Visar ${filteredSponsored.length} matcher`;
+
+        if (!filteredSponsored.length) {
           tbody.innerHTML = '<tr><td colspan="5" class="muted">Inga matcher hittades.</td></tr>';
+          buildPagination("sponsoredPagination", 0, 1, perPage, () => {});
           return;
         }
-        for (const g of games) {
+
+        for (const g of page) {
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td style="text-align:center">
@@ -332,6 +458,7 @@
           `;
           tbody.appendChild(tr);
         }
+
         tbody.querySelectorAll(".sponsored-check").forEach((cb) => {
           cb.addEventListener("change", async () => {
             await fetch(`/api/admin/sponsored/${encodeURIComponent(cb.dataset.id)}`, {
@@ -342,17 +469,23 @@
             });
           });
         });
+
+        buildPagination("sponsoredPagination", filteredSponsored.length, sponsoredPage, perPage, (p) => {
+          sponsoredPage = p;
+          renderSponsored();
+        });
       }
 
       function filterSponsored() {
         const q = document.getElementById("sponsoredSearch").value.trim().toLowerCase();
         const league = document.getElementById("sponsoredLeague").value;
-        const filtered = allSponsored.filter((g) => {
+        filteredSponsored = allSponsored.filter((g) => {
           if (league && g.competition !== league) return false;
           if (q && !`${g.homeTeam} ${g.awayTeam} ${g.venue}`.toLowerCase().includes(q)) return false;
           return true;
         });
-        renderSponsored(filtered);
+        sponsoredPage = 1;
+        renderSponsored();
       }
 
       async function loadSponsored() {
@@ -360,6 +493,8 @@
         if (!res.ok) return;
         const data = await res.json();
         allSponsored = data.games || [];
+        filteredSponsored = allSponsored;
+        sponsoredPage = 1;
 
         // Populate league dropdown
         const leagues = [...new Set(allSponsored.map((g) => g.competition))].sort();
@@ -367,57 +502,43 @@
         leagueSelect.innerHTML = '<option value="">Alla ligor</option>' +
           leagues.map((l) => `<option value="${l}">${l}</option>`).join("");
 
-        renderSponsored(allSponsored);
+        renderSponsored();
 
         document.getElementById("sponsoredSearch").addEventListener("input", filterSponsored);
         leagueSelect.addEventListener("change", filterSponsored);
+        document.getElementById("sponsoredPerPage").addEventListener("change", () => {
+          sponsoredPage = 1;
+          renderSponsored();
+        });
       }
+
+      // ─── Venues ──────────────────────────────────────────────────────────────
 
       let allVenues = [];
+      let filteredVenues = [];
+      let venuesPage = 1;
 
-      async function loadVenues() {
-        const response = await fetch("/api/admin/venues", { credentials: "include" });
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          document.getElementById("venuesBody").innerHTML =
-            `<tr><td colspan="7" class="error">Fel: ${err.details || err.error || response.status}</td></tr>`;
-          return;
-        }
-        const data = await response.json();
-        allVenues = data.venues || [];
-
-        // Populate country dropdown
-        const countries = [...new Set(allVenues.map((v) => v.country).filter(Boolean))].sort();
-        const countrySelect = document.getElementById("venueCountry");
-        countrySelect.innerHTML = '<option value="">Alla länder</option>' +
-          countries.map((c) => `<option value="${c}">${c}</option>`).join("");
-
-        renderVenues(allVenues);
-
-        document.getElementById("venueSearch").addEventListener("input", filterVenues);
-        countrySelect.addEventListener("change", filterVenues);
+      function getVenuesPerPage() {
+        return Number(document.getElementById("venuePerPage").value);
       }
 
-      function filterVenues() {
-        const q = document.getElementById("venueSearch").value.trim().toLowerCase();
-        const country = document.getElementById("venueCountry").value;
-        const filtered = allVenues.filter((v) => {
-          if (country && v.country !== country) return false;
-          if (q && !`${v.venue} ${v.city} ${v.country}`.toLowerCase().includes(q)) return false;
-          return true;
-        });
-        renderVenues(filtered);
-      }
+      function renderVenues() {
+        const perPage = getVenuesPerPage();
+        const start = (venuesPage - 1) * perPage;
+        const page = filteredVenues.slice(start, start + perPage);
 
-      function renderVenues(venues) {
         const tbody = document.getElementById("venuesBody");
         tbody.innerHTML = "";
-        document.getElementById("venueCount").textContent = `Visar ${venues.length} arenor`;
-        if (!venues.length) {
+        document.getElementById("venueCount").textContent =
+          `Visar ${filteredVenues.length} arenor`;
+
+        if (!filteredVenues.length) {
           tbody.innerHTML = '<tr><td colspan="9" class="muted">Inga arenor hittades.</td></tr>';
+          buildPagination("venuesPagination", 0, 1, perPage, () => {});
           return;
         }
-        for (const v of venues) {
+
+        for (const v of page) {
           const sourceLabel = v.source === "manual"
             ? '<span class="badge-manual">manuell</span>'
             : '<span class="badge-auto">auto</span>';
@@ -468,6 +589,52 @@
             btn.disabled = false;
             setTimeout(() => { statusEl.textContent = ""; }, 3000);
           });
+        });
+
+        buildPagination("venuesPagination", filteredVenues.length, venuesPage, perPage, (p) => {
+          venuesPage = p;
+          renderVenues();
+        });
+      }
+
+      function filterVenues() {
+        const q = document.getElementById("venueSearch").value.trim().toLowerCase();
+        const country = document.getElementById("venueCountry").value;
+        filteredVenues = allVenues.filter((v) => {
+          if (country && v.country !== country) return false;
+          if (q && !`${v.venue} ${v.city} ${v.country}`.toLowerCase().includes(q)) return false;
+          return true;
+        });
+        venuesPage = 1;
+        renderVenues();
+      }
+
+      async function loadVenues() {
+        const response = await fetch("/api/admin/venues", { credentials: "include" });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          document.getElementById("venuesBody").innerHTML =
+            `<tr><td colspan="9" class="error">Fel: ${err.details || err.error || response.status}</td></tr>`;
+          return;
+        }
+        const data = await response.json();
+        allVenues = data.venues || [];
+        filteredVenues = allVenues;
+        venuesPage = 1;
+
+        // Populate country dropdown
+        const countries = [...new Set(allVenues.map((v) => v.country).filter(Boolean))].sort();
+        const countrySelect = document.getElementById("venueCountry");
+        countrySelect.innerHTML = '<option value="">Alla länder</option>' +
+          countries.map((c) => `<option value="${c}">${c}</option>`).join("");
+
+        renderVenues();
+
+        document.getElementById("venueSearch").addEventListener("input", filterVenues);
+        countrySelect.addEventListener("change", filterVenues);
+        document.getElementById("venuePerPage").addEventListener("change", () => {
+          venuesPage = 1;
+          renderVenues();
         });
       }
 
