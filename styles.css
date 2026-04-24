@@ -103,6 +103,20 @@ body {
   flex-shrink: 0;
 }
 
+.contact-link {
+  color: #fff;
+  font-size: 13px;
+  opacity: 0.85;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.contact-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
 .controls {
   position: absolute;
   top: 16px;
@@ -305,6 +319,10 @@ main {
   }
 
   .locate-btn span {
+    display: none;
+  }
+
+  .contact-link {
     display: none;
   }
 
