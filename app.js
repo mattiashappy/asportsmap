@@ -208,6 +208,30 @@ function renderMarkers() {
 function wireEvents() {
   elements.search.addEventListener("input", applyFilters);
   elements.range.addEventListener("input", applyFilters);
+
+  const locateBtn = document.getElementById("locateBtn");
+  locateBtn.addEventListener("click", () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+    locateBtn.classList.add("loading");
+    locateBtn.disabled = true;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        locateBtn.classList.remove("loading");
+        locateBtn.disabled = false;
+        const { latitude, longitude } = pos.coords;
+        map.setView([latitude, longitude], 8);
+      },
+      () => {
+        locateBtn.classList.remove("loading");
+        locateBtn.disabled = false;
+        alert("Could not get your location. Please check your browser permissions.");
+      },
+      { timeout: 10000 }
+    );
+  });
   elements.prevGameBtn.addEventListener("click", () => {
     if (state.venueGames.length < 2) return;
     const prevIndex = (state.venueGameIndex - 1 + state.venueGames.length) % state.venueGames.length;
