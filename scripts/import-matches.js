@@ -29,17 +29,19 @@ const ENABLE_GEOCODING = process.env.ENABLE_GEOCODING !== "false";
 const NOMINATIM_EMAIL = process.env.NOMINATIM_EMAIL || "";
 const GEOCODE_DELAY_MS = Number(process.env.GEOCODE_DELAY_MS || 1100);
 
+// Fördröjning mellan anrop till football-data (deras gräns ligger runt 10 req/min).
+// 7 000 ms => ~8,5 req/min, säker marginal.
+const FD_DELAY_MS = Number(process.env.FD_DELAY_MS || 7000);
+
 function getApiToken() {
   for (const key of TOKEN_ENV_CANDIDATES) {
     if (process.env[key]) return process.env[key];
   }
-
   const dynamic = Object.entries(process.env).find(([key, value]) => {
     if (!value) return false;
     const normalized = key.replace(/[^a-z0-9]/gi, "").toUpperCase();
     return normalized === "XAUTH" || normalized === "XAUTHTOKEN" || normalized === "FOOTBALLDATAAPITOKEN";
   });
-
   return dynamic ? dynamic[1] : "";
 }
 
@@ -49,7 +51,6 @@ if (!DATABASE_URL) {
   console.error("Missing DATABASE_URL");
   process.exit(1);
 }
-
 if (!API_TOKEN) {
   console.error(
     `Missing API token. Set one of: ${TOKEN_ENV_CANDIDATES.join(", ")} (Heroku usually works best with X_AUTH).`
@@ -144,40 +145,32 @@ async function saveVenueLocation(venueKey, venue, country, lat, lng, source) {
 
 async function geocodeVenue(venue, country) {
   if (!ENABLE_GEOCODING) return null;
-
   const params = new URLSearchParams({
     q: `${venue}, ${country}`,
     format: "jsonv2",
     limit: "1"
   });
-
   if (NOMINATIM_EMAIL) {
     params.set("email", NOMINATIM_EMAIL);
   }
-
   const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
     headers: {
       "User-Agent": "asportsmap-importer/1.0"
     }
   });
-
   if (!response.ok) {
     return null;
   }
-
   const data = await response.json();
   if (!Array.isArray(data) || !data.length) {
     return null;
   }
-
   const top = data[0];
   const lat = Number(top.lat);
   const lng = Number(top.lon);
-
   if (Number.isNaN(lat) || Number.isNaN(lng)) {
     return null;
   }
-
   return { lat, lng };
 }
 
@@ -185,11 +178,9 @@ async function resolveCoords(match, locationCache) {
   const venue = match.venue || `${match.homeTeam?.name || "Unknown venue"} Stadium`;
   const country = match.area?.name || "Unknown";
   const venueKey = normalizeVenue(venue, country);
-
   if (locationCache.has(venueKey)) {
     return locationCache.get(venueKey);
   }
-
   const geocoded = await geocodeVenue(venue, country);
   if (geocoded) {
     await saveVenueLocation(venueKey, venue, country, geocoded.lat, geocoded.lng, "nominatim");
@@ -197,13 +188,11 @@ async function resolveCoords(match, locationCache) {
     await sleep(GEOCODE_DELAY_MS);
     return geocoded;
   }
-
   const fallback = guessCoords(country);
   await saveVenueLocation(venueKey, venue, country, fallback.lat, fallback.lng, "fallback");
   locationCache.set(venueKey, fallback);
   return fallback;
 }
-
 
 async function ensureImportRunsTable() {
   await pool.query(`
@@ -244,24 +233,36 @@ async function completeImportRun(runId, importedMatches) {
 
 async function failImportRun(runId, errorMessage) {
   if (!runId) return;
-
   await pool.query(
     `
       UPDATE import_runs
       SET status = 'failed', finished_at = NOW(), error_message = $2
       WHERE id = $1
     `,
-    [runId, String(errorMessage || 'Unknown import error').slice(0, 2000)]
+    [runId, String(errorMessage || "Unknown import error").slice(0, 2000)]
   );
 }
 
-async function fetchCompetitionMatches(code) {
+// Hanterar rate limit (429) med retry, och hoppar över ligor som inte ingår i planen (403/404).
+async function fetchCompetitionMatches(code, attempt = 1) {
   const url = `https://api.football-data.org/v4/competitions/${code}/matches`;
   const response = await fetch(url, {
-    headers: {
-      "X-Auth-Token": API_TOKEN
-    }
+    headers: { "X-Auth-Token": API_TOKEN }
   });
+
+  if (response.status === 429 && attempt <= 3) {
+    const body = await response.json().catch(() => ({}));
+    const waitMatch = /(\d+)\s*seconds?/.exec(body.message || "");
+    const waitMs = (waitMatch ? Number(waitMatch[1]) : 30) * 1000 + 500;
+    console.warn(`Rate limited on ${code}, waiting ${waitMs} ms (attempt ${attempt})...`);
+    await sleep(waitMs);
+    return fetchCompetitionMatches(code, attempt + 1);
+  }
+
+  if (response.status === 403 || response.status === 404) {
+    console.warn(`Skipping ${code}: HTTP ${response.status} (not on plan or unknown).`);
+    return { matches: [] };
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -276,7 +277,6 @@ async function normalizeMatch(match, locationCache) {
   const country = resolveCountry(match);
   const venue = match.venue || `${match.homeTeam?.name || "Unknown venue"} Stadium`;
   const coords = await resolveCoords(match, locationCache);
-
   return {
     id,
     sport: "football",
@@ -296,7 +296,6 @@ async function normalizeMatch(match, locationCache) {
 
 async function upsertMatches(matches) {
   if (!matches.length) return 0;
-
   const query = `
     INSERT INTO games (
       id, sport, competition, venue, city, country, capacity, kickoff, lat, lng,
@@ -320,7 +319,6 @@ async function upsertMatches(matches) {
       away_team = EXCLUDED.away_team,
       flag_url = EXCLUDED.flag_url
   `;
-
   let count = 0;
   for (const match of matches) {
     await pool.query(query, [
@@ -340,33 +338,33 @@ async function upsertMatches(matches) {
     ]);
     count += 1;
   }
-
   return count;
 }
 
 async function main() {
   let runId = null;
-
   try {
     await ensureVenueLocationsTable();
     await ensureImportRunsTable();
     runId = await startImportRun();
-
     const locationCache = await loadVenueLocationCache();
-
     let total = 0;
 
-    for (const code of COMPETITIONS) {
+    for (let i = 0; i < COMPETITIONS.length; i++) {
+      const code = COMPETITIONS[i];
       const payload = await fetchCompetitionMatches(code);
       const normalized = [];
-
       for (const match of payload.matches || []) {
         normalized.push(await normalizeMatch(match, locationCache));
       }
-
       const imported = await upsertMatches(normalized);
       total += imported;
       console.log(`Imported/updated ${imported} matches from competition ${code}`);
+
+      // Fördröjning mellan competitions så vi inte triggar football-datas rate limit.
+      if (i < COMPETITIONS.length - 1) {
+        await sleep(FD_DELAY_MS);
+      }
     }
 
     await completeImportRun(runId, total);
