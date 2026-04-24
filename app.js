@@ -89,10 +89,17 @@ function applyLanguage() {
     el.setAttribute("aria-label", t(el.dataset.i18nAria));
   });
 
-  // Highlight active lang button
-  document.querySelectorAll(".lang-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.lang === currentLang);
-  });
+  // Flag toggle: show the flag of the OTHER language (the one you'd switch to)
+  const langToggle = document.getElementById("langToggle");
+  if (langToggle) {
+    if (currentLang === "en") {
+      langToggle.textContent = "🇸🇪";
+      langToggle.title = "Byt till svenska";
+    } else {
+      langToggle.textContent = "🇺🇸";
+      langToggle.title = "Switch to English";
+    }
+  }
 }
 
 // ─── State & elements ─────────────────────────────────────────────────────────
@@ -289,19 +296,16 @@ function wireEvents() {
   elements.search.addEventListener("input", applyFilters);
   elements.range.addEventListener("input", applyFilters);
 
-  // Language switcher
-  document.querySelectorAll(".lang-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      currentLang = btn.dataset.lang;
-      localStorage.setItem("lang", currentLang);
-      applyLanguage();
-      // Re-render dates and open game card in new language
-      applyFilters();
-      const openGame = state.venueGames[state.venueGameIndex];
-      if (openGame && !elements.card.classList.contains("hidden")) {
-        showGame(openGame);
-      }
-    });
+  // Language toggle
+  document.getElementById("langToggle").addEventListener("click", () => {
+    currentLang = currentLang === "en" ? "sv" : "en";
+    localStorage.setItem("lang", currentLang);
+    applyLanguage();
+    applyFilters();
+    const openGame = state.venueGames[state.venueGameIndex];
+    if (openGame && !elements.card.classList.contains("hidden")) {
+      showGame(openGame);
+    }
   });
 
   const locateBtn = document.getElementById("locateBtn");
