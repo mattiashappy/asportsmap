@@ -186,7 +186,11 @@ function renderMarkers() {
     state.markers.push(marker);
   });
 
-  if (state.filteredGames.length) {
+  // Only fit bounds when the user has typed a search query — otherwise
+  // the map stays at its initial world view instead of zooming out to fit
+  // all global markers on every render.
+  const q = elements.search.value.trim();
+  if (q && state.filteredGames.length) {
     const bounds = L.latLngBounds(state.filteredGames.map((g) => [g.lat, g.lng]));
     map.fitBounds(bounds.pad(0.45));
   }
