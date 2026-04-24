@@ -18,15 +18,20 @@
         <h1><img src="/Logo.svg" alt="asportsmap logo" class="brand-logo" /></h1>
       </div>
       <div class="search-wrapper">
-        <input id="searchInput" type="search" placeholder="Search city, stadium, team..." />
-        <button id="locateBtn" class="locate-btn" type="button" title="Find games near me">
+        <input id="searchInput" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="Search city, stadium, team..." />
+        <button id="locateBtn" class="locate-btn" type="button" data-i18n-title="nearMeTitle" title="Find games near me">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"/>
             <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
             <path d="M12 7a5 5 0 1 0 0 10A5 5 0 0 0 12 7z" opacity=".35"/>
           </svg>
-          <span>Near me</span>
+          <span data-i18n="nearMe">Near me</span>
         </button>
+      </div>
+      <div class="lang-switcher">
+        <button class="lang-btn active" data-lang="en">EN</button>
+        <span class="lang-divider">|</span>
+        <button class="lang-btn" data-lang="sv">SV</button>
       </div>
       <a class="contact-link" href="mailto:info@asportmap.com">info@asportmap.com</a>
     </header>
@@ -40,15 +45,15 @@
             <strong id="toDate">--</strong>
           </div>
           <input id="dateRange" type="range" min="0" max="30" value="30" />
-          <small>Show games in the next <span id="rangeDays">30</span> days</small>
+          <small><span data-i18n="showGames">Show games in the next</span> <span id="rangeDays">30</span> <span data-i18n="days">days</span></small>
         </div>
       </section>
       <aside id="gameCard" class="game-card hidden">
-        <button id="closeCardBtn" class="close-btn" type="button" aria-label="Stäng">&times;</button>
+        <button id="closeCardBtn" class="close-btn" type="button" data-i18n-aria="closeLabel" aria-label="Close">&times;</button>
         <div class="card-nav">
-          <button id="prevGameBtn" class="nav-arrow" type="button" aria-label="Föregående match">&#8592;</button>
+          <button id="prevGameBtn" class="nav-arrow" type="button" data-i18n-aria="prevGame" aria-label="Previous game">&#8592;</button>
           <h2 id="stadiumName"></h2>
-          <button id="nextGameBtn" class="nav-arrow" type="button" aria-label="Nästa match">&#8594;</button>
+          <button id="nextGameBtn" class="nav-arrow" type="button" data-i18n-aria="nextGame" aria-label="Next game">&#8594;</button>
         </div>
         <div class="matchup">
           <div>
@@ -60,8 +65,8 @@
         <p id="competition"></p>
         <p id="gameTime" class="muted"></p>
         <div class="card-actions">
-          <span id="sponsoredBadge" class="sponsored-badge" style="display:none">★ Sponsored</span>
-          <a id="affiliateBtn" class="affiliate-btn" href="#" target="_blank" rel="noopener" style="display:none">Buy tickets</a>
+          <span id="sponsoredBadge" class="sponsored-badge" style="display:none" data-i18n="sponsored">★ Sponsored</span>
+          <a id="affiliateBtn" class="affiliate-btn" href="#" target="_blank" rel="noopener" style="display:none" data-i18n="buyTickets">Buy tickets</a>
         </div>
       </aside>
     </main>

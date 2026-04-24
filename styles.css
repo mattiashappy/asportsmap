@@ -103,6 +103,44 @@ body {
   flex-shrink: 0;
 }
 
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.lang-btn {
+  background: none;
+  border: 1.5px solid rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.7);
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.lang-btn:hover {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border-color: rgba(255,255,255,0.6);
+}
+
+.lang-btn.active {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  border-color: #fff;
+}
+
+.lang-divider {
+  color: rgba(255,255,255,0.3);
+  font-size: 13px;
+  user-select: none;
+}
+
 .contact-link {
   color: #fff;
   font-size: 13px;
@@ -324,6 +362,14 @@ main {
 
   .contact-link {
     display: none;
+  }
+
+  .lang-divider {
+    display: none;
+  }
+
+  .lang-switcher {
+    gap: 6px;
   }
 
   .locate-btn {
