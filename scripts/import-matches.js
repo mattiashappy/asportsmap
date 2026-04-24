@@ -126,6 +126,7 @@ async function loadVenueLocationCache() {
 }
 
 async function saveVenueLocation(venueKey, venue, country, lat, lng, source) {
+  // Skyddar manuellt satta koordinater: rader med source = 'manual' uppdateras ALDRIG av importen.
   await pool.query(
     `
       INSERT INTO venue_locations (venue_key, venue_name, country, lat, lng, source, updated_at)
@@ -138,6 +139,7 @@ async function saveVenueLocation(venueKey, venue, country, lat, lng, source) {
         lng = EXCLUDED.lng,
         source = EXCLUDED.source,
         updated_at = NOW()
+      WHERE venue_locations.source <> 'manual'
     `,
     [venueKey, venue, country, lat, lng, source]
   );
