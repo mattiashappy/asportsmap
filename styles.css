@@ -7,6 +7,10 @@
   --text: #1d2230;
 }
 
+html {
+  height: 100%;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -98,6 +102,11 @@ main {
 #map {
   position: absolute;
   inset: 0;
+}
+
+/* Match the OSM ocean tile colour so polar areas blend in instead of showing grey */
+.leaflet-container {
+  background: #aad3df;
 }
 
 .game-card {
