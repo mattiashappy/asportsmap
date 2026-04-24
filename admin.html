@@ -98,10 +98,7 @@
       }
       .badge-manual { color: #86efac; }
       .badge-auto { color: #94a3b8; }
-      #venueSearch {
-        margin-bottom: 0.75rem;
-        max-width: 300px;
-      }
+
     </style>
   </head>
   <body>
@@ -172,6 +169,13 @@
         <div class="card">
           <h2>⭐ Sponsrade matcher</h2>
           <p class="muted">Markerade matcher visas med en guldig plupp på kartan.</p>
+          <div style="display:flex; gap:8px; margin-bottom:0.75rem; flex-wrap:wrap;">
+            <input id="sponsoredSearch" type="search" placeholder="Sök lag eller arena..." style="flex:1; min-width:180px;" />
+            <select id="sponsoredLeague" style="padding:0.6rem; border-radius:8px; border:1px solid #475569; background:#0b1220; color:#e2e8f0; min-width:180px;">
+              <option value="">Alla ligor</option>
+            </select>
+          </div>
+          <p id="sponsoredCount" class="muted" style="margin:0 0 0.5rem;"></p>
           <table>
             <thead>
               <tr>
@@ -189,7 +193,13 @@
         <div class="card">
           <h2>Arenor &amp; koordinater</h2>
           <p class="muted">Rätta till lat/lng för arenor som hamnat fel på kartan. Ändringarna sparas direkt i databasen.</p>
-          <input id="venueSearch" type="search" placeholder="Filtrera arena..." />
+          <div style="display:flex; gap:8px; margin-bottom:0.75rem; flex-wrap:wrap;">
+            <input id="venueSearch" type="search" placeholder="Sök arena, stad..." style="flex:1; min-width:180px;" />
+            <select id="venueCountry" style="padding:0.6rem; border-radius:8px; border:1px solid #475569; background:#0b1220; color:#e2e8f0; min-width:160px;">
+              <option value="">Alla länder</option>
+            </select>
+          </div>
+          <p id="venueCount" class="muted" style="margin:0 0 0.5rem;"></p>
           <table>
             <thead>
               <tr>
@@ -299,17 +309,17 @@
         }
       });
 
-      async function loadSponsored() {
-        const res = await fetch("/api/admin/sponsored", { credentials: "include" });
-        if (!res.ok) return;
-        const data = await res.json();
+      let allSponsored = [];
+
+      function renderSponsored(games) {
         const tbody = document.getElementById("sponsoredBody");
         tbody.innerHTML = "";
-        if (!data.games.length) {
-          tbody.innerHTML = '<tr><td colspan="5" class="muted">Inga kommande matcher.</td></tr>';
+        document.getElementById("sponsoredCount").textContent = `Visar ${games.length} matcher`;
+        if (!games.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="muted">Inga matcher hittades.</td></tr>';
           return;
         }
-        for (const g of data.games) {
+        for (const g of games) {
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td style="text-align:center">
@@ -334,6 +344,35 @@
         });
       }
 
+      function filterSponsored() {
+        const q = document.getElementById("sponsoredSearch").value.trim().toLowerCase();
+        const league = document.getElementById("sponsoredLeague").value;
+        const filtered = allSponsored.filter((g) => {
+          if (league && g.competition !== league) return false;
+          if (q && !`${g.homeTeam} ${g.awayTeam} ${g.venue}`.toLowerCase().includes(q)) return false;
+          return true;
+        });
+        renderSponsored(filtered);
+      }
+
+      async function loadSponsored() {
+        const res = await fetch("/api/admin/sponsored", { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        allSponsored = data.games || [];
+
+        // Populate league dropdown
+        const leagues = [...new Set(allSponsored.map((g) => g.competition))].sort();
+        const leagueSelect = document.getElementById("sponsoredLeague");
+        leagueSelect.innerHTML = '<option value="">Alla ligor</option>' +
+          leagues.map((l) => `<option value="${l}">${l}</option>`).join("");
+
+        renderSponsored(allSponsored);
+
+        document.getElementById("sponsoredSearch").addEventListener("input", filterSponsored);
+        leagueSelect.addEventListener("change", filterSponsored);
+      }
+
       let allVenues = [];
 
       async function loadVenues() {
@@ -346,14 +385,36 @@
         }
         const data = await response.json();
         allVenues = data.venues || [];
+
+        // Populate country dropdown
+        const countries = [...new Set(allVenues.map((v) => v.country).filter(Boolean))].sort();
+        const countrySelect = document.getElementById("venueCountry");
+        countrySelect.innerHTML = '<option value="">Alla länder</option>' +
+          countries.map((c) => `<option value="${c}">${c}</option>`).join("");
+
         renderVenues(allVenues);
+
+        document.getElementById("venueSearch").addEventListener("input", filterVenues);
+        countrySelect.addEventListener("change", filterVenues);
+      }
+
+      function filterVenues() {
+        const q = document.getElementById("venueSearch").value.trim().toLowerCase();
+        const country = document.getElementById("venueCountry").value;
+        const filtered = allVenues.filter((v) => {
+          if (country && v.country !== country) return false;
+          if (q && !`${v.venue} ${v.city} ${v.country}`.toLowerCase().includes(q)) return false;
+          return true;
+        });
+        renderVenues(filtered);
       }
 
       function renderVenues(venues) {
         const tbody = document.getElementById("venuesBody");
         tbody.innerHTML = "";
+        document.getElementById("venueCount").textContent = `Visar ${venues.length} arenor`;
         if (!venues.length) {
-          tbody.innerHTML = '<tr><td colspan="7" class="muted">Inga arenor hittades.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="9" class="muted">Inga arenor hittades.</td></tr>';
           return;
         }
         for (const v of venues) {
@@ -409,14 +470,6 @@
           });
         });
       }
-
-      document.getElementById("venueSearch").addEventListener("input", (e) => {
-        const q = e.target.value.trim().toLowerCase();
-        const filtered = q
-          ? allVenues.filter((v) => `${v.venue} ${v.city} ${v.country}`.toLowerCase().includes(q))
-          : allVenues;
-        renderVenues(filtered);
-      });
 
       refreshBtn.addEventListener("click", () => { loadStats(); loadSponsored(); loadVenues(); });
       logoutBtn.addEventListener("click", async () => {
