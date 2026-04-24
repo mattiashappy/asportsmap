@@ -7,6 +7,8 @@ const map = L.map("map", {
 }).setView([25, 5], 2);
 L.control.zoom({ position: "topright" }).addTo(map);
 new ResizeObserver(() => map.invalidateSize()).observe(document.getElementById("map"));
+// Force Leaflet to recalculate after CSS layout has fully settled
+requestAnimationFrame(() => requestAnimationFrame(() => map.invalidateSize()));
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: "© OpenStreetMap contributors"
 }).addTo(map);
