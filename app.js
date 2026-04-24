@@ -93,10 +93,10 @@ function applyLanguage() {
   const langToggle = document.getElementById("langToggle");
   if (langToggle) {
     if (currentLang === "en") {
-      langToggle.textContent = "🇸🇪";
+      langToggle.innerHTML = '<img src="https://flagcdn.com/w40/se.png" alt="Svenska" class="lang-flag" />';
       langToggle.title = "Byt till svenska";
     } else {
-      langToggle.textContent = "🇺🇸";
+      langToggle.innerHTML = '<img src="https://flagcdn.com/w40/us.png" alt="English" class="lang-flag" />';
       langToggle.title = "Switch to English";
     }
   }
