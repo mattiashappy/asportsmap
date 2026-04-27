@@ -351,13 +351,23 @@ main {
   }
 
   .topbar {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: 1fr;
     padding: 8px 12px;
-    column-gap: 10px;
+    row-gap: 8px;
+  }
+
+  .brand {
+    display: flex;
+    justify-content: center;
+  }
+
+  .brand-logo {
+    height: 48px;
   }
 
   .topbar-right {
     min-width: 0;
+    align-items: stretch;
   }
 
   .topbar-row {
